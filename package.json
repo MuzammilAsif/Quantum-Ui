@@ -1,0 +1,168 @@
+{
+  "name": "quantum-ui",
+  "displayName": "Quantum UI",
+  "description": "A futuristic AI-powered UI component system for VS Code",
+  "version": "0.1.0",
+  "publisher": "quantum-ui",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "ui",
+    "components",
+    "ai",
+    "design",
+    "react"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "quantum-ui-sidebar",
+          "title": "Quantum UI",
+          "icon": "src/assets/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "quantum-ui-sidebar": [
+        {
+          "type": "webview",
+          "id": "quantumUI.sidebar",
+          "name": "Quantum UI",
+          "retainContextWhenHidden": true
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "quantumUI.openPanel",
+        "title": "Open Quantum UI Panel",
+        "category": "Quantum UI"
+      },
+      {
+        "command": "quantumUI.refresh",
+        "title": "Refresh Quantum UI",
+        "category": "Quantum UI"
+      },
+      {
+        "command": "quantumUI.toggleTheme",
+        "title": "Toggle Theme",
+        "category": "Quantum UI"
+      },
+      {
+        "command": "quantumUI.openSettings",
+        "title": "Open Settings",
+        "category": "Quantum UI"
+      }
+    ],
+    "configuration": {
+      "title": "Quantum UI",
+      "properties": {
+        "quantumUI.theme": {
+          "type": "string",
+          "default": "dark",
+          "enum": [
+            "dark",
+            "light",
+            "system"
+          ],
+          "description": "Color theme for Quantum UI"
+        },
+        "quantumUI.accentColor": {
+          "type": "string",
+          "default": "purple",
+          "enum": [
+            "purple",
+            "blue",
+            "cyan",
+            "green"
+          ],
+          "description": "Accent color for Quantum UI"
+        },
+        "quantumUI.animationsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable animations"
+        },
+        "quantumUI.compactMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable compact sidebar mode"
+        }
+      }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "quantumUI.openPanel",
+          "when": "true"
+        },
+        {
+          "command": "quantumUI.refresh",
+          "when": "true"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build:all",
+    "build:all": "npm run build:ext && npm run build:webview",
+    "build:ext": "tsc -p tsconfig.json --outDir dist/extension",
+    "build:webview": "vite build",
+    "dev:ext": "tsc -p tsconfig.json --watch --outDir dist/extension",
+    "dev:webview": "vite",
+    "dev": "concurrently \"npm run dev:ext\" \"npm run dev:webview\"",
+    "compile": "npm run build:all",
+    "watch": "npm run dev",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint src --ext ts,tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
+    "typecheck": "tsc --noEmit",
+    "typecheck:webview": "tsc --project tsconfig.webview.json --noEmit",
+    "clean": "rm -rf dist",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.42",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.17",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "postcss": "^8.4.33",
+    "prettier": "^3.2.4",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  },
+  "dependencies": {
+    "@radix-ui/react-scroll-area": "^1.0.5",
+    "@radix-ui/react-tooltip": "^1.0.7",
+    "clsx": "^2.1.0",
+    "framer-motion": "^11.0.3",
+    "immer": "^10.0.3",
+    "lucide-react": "^0.316.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwind-merge": "^2.2.0",
+    "zustand": "^4.5.0"
+  }
+}

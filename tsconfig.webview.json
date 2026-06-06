@@ -1,0 +1,80 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/webview/*"
+      ],
+      "@shared/*": [
+        "src/shared/*"
+      ],
+      "@components/*": [
+        "src/webview/components/*"
+      ],
+      "@features/*": [
+        "src/webview/features/*"
+      ],
+      "@store/*": [
+        "src/webview/store/*"
+      ],
+      "@hooks/*": [
+        "src/webview/hooks/*"
+      ],
+      "@services/*": [
+        "src/webview/services/*"
+      ],
+      "@utils/*": [
+        "src/webview/utils/*"
+      ],
+      "@types/*": [
+        "src/webview/types/*"
+      ],
+      "@constants/*": [
+        "src/webview/constants/*"
+      ],
+      "@pages/*": [
+        "src/webview/pages/*"
+      ],
+      "@layouts/*": [
+        "src/webview/layouts/*"
+      ],
+      "@styles/*": [
+        "src/webview/styles/*"
+      ],
+      "@assets/*": [
+        "src/webview/assets/*"
+      ]
+    }
+  },
+  "include": [
+    "src/webview/**/*.ts",
+    "src/webview/**/*.tsx",
+    "src/shared/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/extension"
+  ]
+}

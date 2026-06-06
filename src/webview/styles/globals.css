@@ -1,0 +1,289 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Custom Properties (Design Tokens) ──────────────────────────────────── */
+:root {
+  /* Accent — default purple, overridden by themeStore */
+  --q-accent: #8b5cf6;
+  --q-accent-hover: #7c3aed;
+  --q-accent-glow: rgba(139, 92, 246, 0.3);
+  --q-accent-subtle: rgba(139, 92, 246, 0.08);
+  --q-accent-border: rgba(139, 92, 246, 0.2);
+
+  /* Animation scale — set to 0 when disabled */
+  --q-animation-scale: 1;
+
+  /* Sidebar dimensions */
+  --sidebar-width: 100%;
+  --header-height: 52px;
+  --nav-height: 52px;
+  --footer-height: 56px;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ── Base Reset ──────────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  html {
+    height: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html.light {
+    color-scheme: light;
+  }
+
+  body {
+    height: 100%;
+    overflow: hidden;
+    background: #0a0a12;
+    color: #e8e8ff;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  #root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Focus ring — accessible and minimal */
+  :focus-visible {
+    outline: 2px solid var(--q-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Remove default focus for mouse users */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--q-accent-subtle);
+    color: #e8e8ff;
+  }
+}
+
+/* ── Custom Scrollbar ────────────────────────────────────────────────────────── */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #252540;
+    border-radius: 999px;
+    transition: background 150ms ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #353570;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #252540 transparent;
+  }
+}
+
+/* ── Component Utilities ─────────────────────────────────────────────────────── */
+@layer components {
+  /* Glassmorphism surface */
+  .glass {
+    background: rgba(20, 20, 31, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .glass-elevated {
+    background: rgba(26, 26, 46, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Gradient mesh background */
+  .bg-mesh {
+    background-image:
+      radial-gradient(at 40% 20%, rgba(139, 92, 246, 0.06) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, rgba(34, 188, 255, 0.04) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, rgba(6, 214, 214, 0.03) 0px, transparent 50%);
+  }
+
+  /* Glow accent effect */
+  .accent-glow {
+    box-shadow: 0 0 20px var(--q-accent-glow), 0 0 40px rgba(139, 92, 246, 0.1);
+  }
+
+  /* Shimmer loading skeleton */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.0) 0%,
+      rgba(255, 255, 255, 0.04) 50%,
+      rgba(255, 255, 255, 0.0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  /* Text gradient */
+  .text-gradient {
+    background: linear-gradient(135deg, var(--q-accent) 0%, #22bcff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Nav item active indicator */
+  .nav-indicator {
+    position: relative;
+  }
+
+  .nav-indicator::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 60%;
+    background: var(--q-accent);
+    border-radius: 0 2px 2px 0;
+    box-shadow: 0 0 8px var(--q-accent-glow);
+  }
+
+  /* Divider */
+  .q-divider {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.06) 30%,
+      rgba(255, 255, 255, 0.06) 70%,
+      transparent 100%
+    );
+  }
+
+  /* Badge */
+  .q-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    background: var(--q-accent);
+    color: #ffffff;
+  }
+
+  /* New pill badge */
+  .q-pill-new {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, var(--q-accent) 0%, #22bcff 100%);
+    color: #ffffff;
+  }
+}
+
+/* ── Utility Overrides ───────────────────────────────────────────────────────── */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .cursor-default { cursor: default; }
+
+  /* Prevent text selection on interactive elements */
+  .no-select {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Full overlay */
+  .inset-full {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+/* ── Keyframes ───────────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--q-accent-glow); }
+  50% { box-shadow: 0 0 20px var(--q-accent-glow), 0 0 40px rgba(139, 92, 246, 0.1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
