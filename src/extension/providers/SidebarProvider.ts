@@ -143,11 +143,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         await vscode.window.showTextDocument(doc, {
           selection: openMsg.payload.line
             ? new vscode.Range(
-                openMsg.payload.line - 1,
-                openMsg.payload.column ?? 0,
-                openMsg.payload.line - 1,
-                openMsg.payload.column ?? 0
-              )
+              openMsg.payload.line - 1,
+              openMsg.payload.column ?? 0,
+              openMsg.payload.line - 1,
+              openMsg.payload.column ?? 0
+            )
             : undefined,
         });
       }
@@ -239,11 +239,19 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
    */
   private buildHtml(webview: vscode.Webview): string {
     const nonce = generateNonce();
+    const fs = require('fs') as typeof import('fs');
+    const webviewDistPath = vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview');
+    const distFiles = fs.readdirSync(webviewDistPath.fsPath);
 
+    const jsFile = distFiles.find((f) => f.endsWith('.js') && !f.includes('chunk')) ?? 'main.js';
+    const cssFile = distFiles.find((f) => f.endsWith('.css')) ?? 'style.css';
+
+    const scriptUri = getWebviewUri(webview, this.extensionUri, jsFile);
+    const styleUri = getWebviewUri(webview, this.extensionUri, cssFile);
     // In production, load from built Vite output
     // In development, this would point to the Vite dev server
-    const scriptUri = getWebviewUri(webview, this.extensionUri, 'main.js');
-    const styleUri = getWebviewUri(webview, this.extensionUri, 'style.css');
+    // const scriptUri = getWebviewUri(webview, this.extensionUri, 'main.js');
+    // const styleUri = getWebviewUri(webview, this.extensionUri, 'style.css');
 
     // Strict Content Security Policy
     const csp = [

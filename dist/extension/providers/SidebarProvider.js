@@ -212,10 +212,17 @@ class SidebarProvider {
      */
     buildHtml(webview) {
         const nonce = (0, utils_1.generateNonce)();
+        const fs = require('fs');
+        const webviewDistPath = vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview');
+        const distFiles = fs.readdirSync(webviewDistPath.fsPath);
+        const jsFile = distFiles.find((f) => f.endsWith('.js') && !f.includes('chunk')) ?? 'main.js';
+        const cssFile = distFiles.find((f) => f.endsWith('.css')) ?? 'style.css';
+        const scriptUri = (0, utils_1.getWebviewUri)(webview, this.extensionUri, jsFile);
+        const styleUri = (0, utils_1.getWebviewUri)(webview, this.extensionUri, cssFile);
         // In production, load from built Vite output
         // In development, this would point to the Vite dev server
-        const scriptUri = (0, utils_1.getWebviewUri)(webview, this.extensionUri, 'main.js');
-        const styleUri = (0, utils_1.getWebviewUri)(webview, this.extensionUri, 'style.css');
+        // const scriptUri = getWebviewUri(webview, this.extensionUri, 'main.js');
+        // const styleUri = getWebviewUri(webview, this.extensionUri, 'style.css');
         // Strict Content Security Policy
         const csp = [
             `default-src 'none'`,

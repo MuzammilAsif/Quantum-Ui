@@ -118,9 +118,9 @@
   "scripts": {
     "vscode:prepublish": "npm run build:all",
     "build:all": "npm run build:ext && npm run build:webview",
-    "build:ext": "tsc -p tsconfig.json --outDir dist/extension",
+    "build:ext": "tsc -p tsconfig.json",
     "build:webview": "vite build",
-    "dev:ext": "tsc -p tsconfig.json --watch --outDir dist/extension",
+    "dev:ext": "tsc -p tsconfig.json --watch",
     "dev:webview": "vite",
     "dev": "concurrently \"npm run dev:ext\" \"npm run dev:webview\"",
     "compile": "npm run build:all",

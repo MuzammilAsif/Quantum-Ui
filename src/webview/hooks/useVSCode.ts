@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { WebviewMessage, ExtensionMessage, MessageType, VSCodeAPI } from '../types';
+import type { WebviewMessage, ExtensionMessage, VSCodeAPI, MessageType } from '../types';
 import { useUserStore } from '../store';
 import { useThemeStore } from '../store';
 import { MessageType as MsgType } from '../types';

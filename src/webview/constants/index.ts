@@ -1,8 +1,56 @@
-export * from '../../shared/constants';
+// ─── Shared constants (explicitly re-exported for Rollup compatibility) ───────
+
+export const EXTENSION_ID = 'quantum-ui';
+export const EXTENSION_DISPLAY_NAME = 'Quantum UI';
+export const EXTENSION_VERSION = '0.1.0';
+
+export const WEBVIEW_ID = 'quantumUI.sidebar';
+
+export const COMMANDS = {
+  OPEN_PANEL: 'quantumUI.openPanel',
+  REFRESH: 'quantumUI.refresh',
+  TOGGLE_THEME: 'quantumUI.toggleTheme',
+  OPEN_SETTINGS: 'quantumUI.openSettings',
+} as const;
+
+export const CONFIG_KEYS = {
+  THEME: 'quantumUI.theme',
+  ACCENT_COLOR: 'quantumUI.accentColor',
+  ANIMATIONS_ENABLED: 'quantumUI.animationsEnabled',
+  COMPACT_MODE: 'quantumUI.compactMode',
+} as const;
+
+export const STORAGE_KEYS = {
+  THEME: 'quantum-ui:theme',
+  ACCENT_COLOR: 'quantum-ui:accent-color',
+  COMPACT_MODE: 'quantum-ui:compact-mode',
+  SELECTED_PAGE: 'quantum-ui:selected-page',
+  FAVORITES: 'quantum-ui:favorites',
+  HISTORY: 'quantum-ui:history',
+  SEARCH_HISTORY: 'quantum-ui:search-history',
+  USER_PREFERENCES: 'quantum-ui:user-preferences',
+} as const;
+
+export const API_ENDPOINTS = {
+  BASE: 'https://api.quantumui.dev/v1',
+  COMPONENTS: '/components',
+  TEMPLATES: '/templates',
+  AI_GENERATE: '/ai/generate',
+  AI_STREAM: '/ai/stream',
+  AUTH_LOGIN: '/auth/login',
+  AUTH_LOGOUT: '/auth/logout',
+  USER_PROFILE: '/user/profile',
+  USER_FAVORITES: '/user/favorites',
+} as const;
+
+export const MAX_HISTORY_ENTRIES = 100;
+export const MAX_SEARCH_HISTORY = 20;
+export const SEARCH_DEBOUNCE_MS = 300;
+export const AI_STREAM_TIMEOUT_MS = 30_000;
+
+// ─── Webview-only constants ───────────────────────────────────────────────────
 
 import type { NavItem, AnimationConfig } from '../types';
-
-// ─── Navigation Items ─────────────────────────────────────────────────────────
 
 export const NAV_ITEMS_CONFIG: NavItem[] = [
   {
@@ -46,8 +94,6 @@ export const NAV_ITEMS_CONFIG: NavItem[] = [
   },
 ];
 
-// ─── Animation Configuration ──────────────────────────────────────────────────
-
 export const ANIMATION_CONFIG: AnimationConfig = {
   enabled: true,
   duration: {
@@ -61,8 +107,6 @@ export const ANIMATION_CONFIG: AnimationConfig = {
     bounce: { type: 'spring', stiffness: 400, damping: 20, mass: 0.8 },
   },
 };
-
-// ─── Framer Motion Variants ───────────────────────────────────────────────────
 
 export const FADE_IN_VARIANTS = {
   hidden: { opacity: 0 },
@@ -100,8 +144,6 @@ export const STAGGER_ITEM_VARIANTS = {
   hidden: { opacity: 0, y: 6 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] } },
 };
-
-// ─── Color Palette ────────────────────────────────────────────────────────────
 
 export const ACCENT_COLORS = {
   purple: {

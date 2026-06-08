@@ -5,8 +5,8 @@
     "lib": [
       "ES2020"
     ],
-    "outDir": "dist/extension",
-    "rootDir": "src/extension",
+    "outDir": "dist",
+    "rootDir": "src",
     "strict": true,
     "noImplicitAny": true,
     "noUnusedLocals": true,

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import type { NavPage } from '../types';
-import { STORAGE_KEYS } from '../constants';
+import { STORAGE_KEYS } from '../constants/index';
 
 interface SidebarStore {
   // State
