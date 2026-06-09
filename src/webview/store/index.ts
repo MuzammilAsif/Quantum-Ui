@@ -3,3 +3,6 @@ export { useThemeStore } from './themeStore';
 export { useSearchStore } from './searchStore';
 export { useUserStore } from './userStore';
 export { useToastStore } from './toastStore';
+export { useAssetStore } from './assetStore';
+export { useFavoritesStore } from './favoritesStore';
+export { useRecentStore } from './recentStore';

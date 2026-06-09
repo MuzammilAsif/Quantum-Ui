@@ -29,7 +29,10 @@
 
 /* ── Base Reset ──────────────────────────────────────────────────────────────── */
 @layer base {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -121,6 +124,7 @@
 
 /* ── Component Utilities ─────────────────────────────────────────────────────── */
 @layer components {
+
   /* Glassmorphism surface */
   .glass {
     background: rgba(20, 20, 31, 0.7);
@@ -151,12 +155,10 @@
 
   /* Shimmer loading skeleton */
   .shimmer {
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.0) 0%,
-      rgba(255, 255, 255, 0.04) 50%,
-      rgba(255, 255, 255, 0.0) 100%
-    );
+    background: linear-gradient(90deg,
+        rgba(255, 255, 255, 0.0) 0%,
+        rgba(255, 255, 255, 0.04) 50%,
+        rgba(255, 255, 255, 0.0) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s ease-in-out infinite;
   }
@@ -190,13 +192,11 @@
   /* Divider */
   .q-divider {
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.06) 30%,
-      rgba(255, 255, 255, 0.06) 70%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.06) 30%,
+        rgba(255, 255, 255, 0.06) 70%,
+        transparent 100%);
   }
 
   /* Badge */
@@ -232,8 +232,14 @@
 
 /* ── Utility Overrides ───────────────────────────────────────────────────────── */
 @layer utilities {
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 
   .truncate-2 {
     display: -webkit-box;
@@ -242,7 +248,9 @@
     overflow: hidden;
   }
 
-  .cursor-default { cursor: default; }
+  .cursor-default {
+    cursor: default;
+  }
 
   /* Prevent text selection on interactive elements */
   .no-select {
@@ -259,31 +267,67 @@
 
 /* ── Keyframes ───────────────────────────────────────────────────────────────── */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px var(--q-accent-glow); }
-  50% { box-shadow: 0 0 20px var(--q-accent-glow), 0 0 40px rgba(139, 92, 246, 0.1); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px var(--q-accent-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 20px var(--q-accent-glow), 0 0 40px rgba(139, 92, 246, 0.1);
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-4px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

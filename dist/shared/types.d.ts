@@ -117,7 +117,7 @@ export type ExtensionMessage = ReadyMessage | GetConfigMessage | SetConfigMessag
 export type WebviewMessage = ConfigLoadedMessage | ThemeChangedMessage | ErrorMessage | AIStreamChunkMessage | AIStreamEndMessage | AIErrorMessage;
 export type Theme = 'dark' | 'light' | 'system';
 export type AccentColor = 'purple' | 'blue' | 'cyan' | 'green';
-export type Framework = 'react' | 'vue' | 'angular' | 'svelte' | 'html';
+export type Framework = 'react' | 'vue' | 'angular' | 'svelte' | 'html' | 'tailwind';
 export type Language = 'typescript' | 'javascript';
 export interface ExtensionConfig {
     theme: Theme;
