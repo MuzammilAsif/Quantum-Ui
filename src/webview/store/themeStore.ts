@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import type { Theme, AccentColor } from '../types';
-import { STORAGE_KEYS, ACCENT_COLORS } from '../constants';
+import { STORAGE_KEYS, ACCENT_COLORS } from '../constants/index';
 
 interface ThemeStore {
   // State

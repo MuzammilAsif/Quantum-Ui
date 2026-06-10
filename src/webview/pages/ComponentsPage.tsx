@@ -8,7 +8,7 @@ import {
   Star,
 } from 'lucide-react';
 import { ContentContainer } from '../components/ContentContainer';
-import { EmptyState } from '../components/EmptyState';
+import { EmptyState } from '../Components/EmptyState';
 import { ComponentCard } from '../features/Components/ComponentCard';
 import { PreviewPanel } from '../features/Components/PreviewPanel';
 import { FilterPanel } from '../features/Components/FilterPanel';

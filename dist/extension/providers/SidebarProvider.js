@@ -216,9 +216,20 @@ class SidebarProvider {
         const webviewDistPath = vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview');
         const distFiles = fs.readdirSync(webviewDistPath.fsPath);
         const jsFile = distFiles.find((f) => f.endsWith('.js') && !f.includes('chunk')) ?? 'main.js';
-        const cssFile = distFiles.find((f) => f.endsWith('.css')) ?? 'style.css';
+        let cssFile = 'style.css';
+        const assetsPath = vscode.Uri.joinPath(webviewDistPath, 'assets');
+        if (fs.existsSync(assetsPath.fsPath)) {
+            const assetFiles = fs.readdirSync(assetsPath.fsPath);
+            const foundCss = assetFiles.find((f) => f.endsWith('.css'));
+            if (foundCss) {
+                cssFile = `assets/${foundCss}`;
+            }
+        }
+        else {
+            cssFile = distFiles.find((f) => f.endsWith('.css')) ?? 'style.css';
+        }
         const scriptUri = (0, utils_1.getWebviewUri)(webview, this.extensionUri, jsFile);
-        const styleUri = (0, utils_1.getWebviewUri)(webview, this.extensionUri, cssFile);
+        const styleUri = (0, utils_1.getWebviewUri)(webview, this.extensionUri, ...cssFile.split('/'));
         // In production, load from built Vite output
         // In development, this would point to the Vite dev server
         // const scriptUri = getWebviewUri(webview, this.extensionUri, 'main.js');
