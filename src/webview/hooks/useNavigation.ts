@@ -4,7 +4,6 @@ import type { NavPage } from '../types';
 
 /**
  * useNavigation — typed navigation between sidebar pages.
- * Automatically records history entries on page changes.
  */
 export function useNavigation() {
   const { activePage, setActivePage, isCompact, toggleCompact, setCompact } =
@@ -16,7 +15,7 @@ export function useNavigation() {
       if (page === activePage) return;
       setActivePage(page);
     },
-    [activePage, setActivePage, addHistoryEntry]
+    [activePage, setActivePage]
   );
 
   const isActive = useCallback(
