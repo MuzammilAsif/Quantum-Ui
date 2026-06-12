@@ -4,10 +4,15 @@ import { Header } from '../components/Header';
 import { ScrollArea } from '../components/ScrollArea';
 import { ToastContainer } from '../components/ToastContainer';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { PreviewPanel } from '../features/Components/PreviewPanel';
 import { useNavigation } from '../hooks/useNavigation';
+import { useAssetStore } from '../store/assetStore';
+import { NAV_ITEMS_CONFIG } from '../constants';
+import { NavigationItem } from '../components/NavigationItem';
 import { cn } from '../utils';
+import type { NavPage } from '../types';
 
-// ── Lazy-loaded pages (code splitting per route) ───────────────────────────
+// ── Lazy-loaded pages ──────────────────────────────────────────────────────
 const HomePage = lazy(() =>
   import('../pages/HomePage').then((m) => ({ default: m.HomePage }))
 );
@@ -30,7 +35,7 @@ const SettingsPage = lazy(() =>
   import('../pages/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
 
-/** Minimal inline page skeleton shown while lazy chunks load */
+// ── Page skeleton shown while lazy chunks load ─────────────────────────────
 function PageSkeleton() {
   return (
     <div className="flex flex-col gap-3 px-3 py-3 animate-pulse">
@@ -45,58 +50,23 @@ function PageSkeleton() {
   );
 }
 
-/**
- * SidebarLayout — the top-level shell of the Quantum UI webview.
- *
- * Structure:
- * ┌─────────────────────────────┐
- * │  Header (logo + search)     │  ← fixed height
- * ├─────────────────────────────┤
- * │  Navigation (nav items)     │  ← fixed height
- * ├─────────────────────────────┤
- * │  ScrollArea                 │  ← flex-1, scrollable
- * │    <ActivePage />           │
- * ├─────────────────────────────┤
- * │  ToastContainer (overlay)   │
- * └─────────────────────────────┘
- */
-export const SidebarLayout = memo(function SidebarLayout() {
-  const { activePage } = useNavigation();
+// ── Page router ────────────────────────────────────────────────────────────
+function PageRouter({ page }: { page: NavPage | 'settings' }) {
+  switch (page) {
+    case 'home': return <HomePage />;
+    case 'components': return <ComponentsPage />;
+    case 'templates': return <TemplatesPage />;
+    case 'ai-studio': return <AIStudioPage />;
+    case 'favorites': return <FavoritesPage />;
+    case 'history': return <HistoryPage />;
+    case 'settings': return <SettingsPage />;
+    default: return <HomePage />;
+  }
+}
 
-  return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-q-base bg-mesh relative">
-
-      {/* Top header */}
-      <Header />
-
-      {/* Navigation rail */}
-      <NavRail />
-
-      {/* Page content */}
-      <ScrollArea fadeTop fadeBottom className="flex-1">
-        <ErrorBoundary>
-          <Suspense fallback={<PageSkeleton />}>
-            <AnimatePresence mode="wait" initial={false}>
-              <PageRouter key={activePage} page={activePage} />
-            </AnimatePresence>
-          </Suspense>
-        </ErrorBoundary>
-      </ScrollArea>
-
-      {/* Toast overlay */}
-      <ToastContainer />
-    </div>
-  );
-});
-
-// ── Inline nav rail (horizontal tab strip under header) ───────────────────
-
-import { NAV_ITEMS_CONFIG } from '../constants';
-import { NavigationItem } from '../components/NavigationItem';
-import type { NavPage } from '../types';
-
+// ── Nav rail ───────────────────────────────────────────────────────────────
 function NavRail() {
-  const { navigate, isActive } = useNavigation();
+  const { activePage, navigate, isActive } = useNavigation();
 
   return (
     <div
@@ -120,17 +90,42 @@ function NavRail() {
   );
 }
 
-// ── Page router ───────────────────────────────────────────────────────────
+// ── Main SidebarLayout ─────────────────────────────────────────────────────
 
-function PageRouter({ page }: { page: NavPage | 'settings' }) {
-  switch (page) {
-    case 'home':        return <HomePage />;
-    case 'components':  return <ComponentsPage />;
-    case 'templates':   return <TemplatesPage />;
-    case 'ai-studio':   return <AIStudioPage />;
-    case 'favorites':   return <FavoritesPage />;
-    case 'history':     return <HistoryPage />;
-    case 'settings':    return <SettingsPage />;
-    default:            return <HomePage />;
-  }
-}
+export const SidebarLayout = memo(function SidebarLayout() {
+  const { activePage } = useNavigation();
+  const { isPreviewOpen, closePreview } = useAssetStore();
+
+  return (
+    <div className="flex flex-col h-full w-full overflow-hidden bg-q-base bg-mesh relative">
+
+      {/* Top header */}
+      <Header />
+
+      {/* Navigation rail */}
+      <NavRail />
+
+      {/* Page content */}
+      <ScrollArea fadeTop fadeBottom className="flex-1">
+        <ErrorBoundary key={activePage}>
+          <Suspense fallback={<PageSkeleton />}>
+            <AnimatePresence mode="wait" initial={false}>
+              <PageRouter
+                key={activePage}
+                page={activePage}
+              />
+            </AnimatePresence>
+          </Suspense>
+        </ErrorBoundary>
+      </ScrollArea>
+
+      {/* ── Global PreviewPanel ───────────────────────────────────────────── */}
+      {/* Rendered here so it is never affected by page navigation            */}
+      {isPreviewOpen && <PreviewPanel />}
+
+      {/* Toast overlay */}
+      <ToastContainer />
+
+    </div>
+  );
+});

@@ -8,7 +8,7 @@ import {
   Star,
 } from 'lucide-react';
 import { ContentContainer } from '../components/ContentContainer';
-import { EmptyState } from '../Components/EmptyState';
+// import { EmptyState } from '../Components/EmptyState';
 import { ComponentCard } from '../features/Components/ComponentCard';
 import { PreviewPanel } from '../features/Components/PreviewPanel';
 import { FilterPanel } from '../features/Components/FilterPanel';
@@ -166,7 +166,6 @@ export const ComponentsPage = memo(function ComponentsPage() {
     searchQuery,
     filters,
     activeCategory,
-    isPreviewOpen,
     setSearchQuery,
     clearFilters,
   } = useAssetStore();
@@ -389,9 +388,6 @@ export const ComponentsPage = memo(function ComponentsPage() {
         )}
 
       </ContentContainer>
-
-      {/* ── Preview panel overlay ─────────────────────────────────────────── */}
-      {isPreviewOpen && <PreviewPanel />}
 
     </div>
   );

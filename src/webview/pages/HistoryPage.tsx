@@ -5,9 +5,7 @@ import { ContentContainer } from '../components/ContentContainer';
 import { SectionTitle } from '../components/SectionTitle';
 import { IconButton } from '../components/IconButton';
 import { ComponentCard } from '../features/Components/ComponentCard';
-import { PreviewPanel } from '../features/Components/PreviewPanel';
 import { useRecentStore } from '../store/recentStore';
-import { useAssetStore } from '../store/assetStore';
 import { formatRelativeTime } from '../utils';
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
@@ -90,90 +88,82 @@ function TimestampBadge({ timestamp }: { timestamp: number }) {
 export const HistoryPage = memo(function HistoryPage() {
   const { recentItems, getRecentAssets, getRecentCount, clearRecent } =
     useRecentStore();
-  const { isPreviewOpen } = useAssetStore();
-
   const recentAssets = getRecentAssets();
   const count = getRecentCount();
   const isEmpty = count === 0;
 
   return (
-    <div className="relative flex flex-col h-full overflow-hidden">
-      <ContentContainer className="flex-1 overflow-y-auto">
+    <ContentContainer className="flex-1 overflow-y-auto">
 
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <SectionTitle
-          title="Recently Viewed"
-          subtitle={
-            isEmpty
-              ? 'No recent activity'
-              : `${count} recent asset${count !== 1 ? 's' : ''}`
-          }
-          action={
-            !isEmpty ? (
-              <IconButton
-                icon={<Trash2 size={11} />}
-                label="Clear history"
-                size="sm"
-                variant="ghost"
-                onClick={clearRecent}
-              />
-            ) : undefined
-          }
-        />
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <SectionTitle
+        title="Recently Viewed"
+        subtitle={
+          isEmpty
+            ? 'No recent activity'
+            : `${count} recent asset${count !== 1 ? 's' : ''}`
+        }
+        action={
+          !isEmpty ? (
+            <IconButton
+              icon={<Trash2 size={11} />}
+              label="Clear history"
+              size="sm"
+              variant="ghost"
+              onClick={clearRecent}
+            />
+          ) : undefined
+        }
+      />
 
-        {/* ── Content ────────────────────────────────────────────────────── */}
-        {isEmpty ? (
-          <HistoryEmptyState />
-        ) : (
-          <motion.div
-            layout
-            className="grid grid-cols-1 gap-3"
-          >
-            <AnimatePresence mode="popLayout" initial={false}>
-              {recentAssets.map((asset, index) => {
-                // Get the timestamp for this asset from recentItems
-                const recentItem = recentItems.find(
-                  (item) => item.assetId === asset.id
-                );
-                const timestamp = recentItem?.viewedAt ?? Date.now();
+      {/* ── Content ────────────────────────────────────────────────────── */}
+      {isEmpty ? (
+        <HistoryEmptyState />
+      ) : (
+        <motion.div
+          layout
+          className="grid grid-cols-1 gap-3"
+        >
+          <AnimatePresence mode="popLayout" initial={false}>
+            {recentAssets.map((asset, index) => {
+              // Get the timestamp for this asset from recentItems
+              const recentItem = recentItems.find(
+                (item) => item.assetId === asset.id
+              );
+              const timestamp = recentItem?.viewedAt ?? Date.now();
 
-                return (
-                  <motion.div
-                    key={asset.id}
-                    layout
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                      transition: {
-                        duration: 0.2,
-                        delay: index < 10 ? index * 0.04 : 0,
-                      },
-                    }}
-                    exit={{
-                      opacity: 0,
-                      scale: 0.96,
-                      transition: { duration: 0.15 },
-                    }}
-                    className="flex flex-col gap-1.5"
-                  >
-                    {/* Timestamp above each card */}
-                    <TimestampBadge timestamp={timestamp} />
+              return (
+                <motion.div
+                  key={asset.id}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    transition: {
+                      duration: 0.2,
+                      delay: index < 10 ? index * 0.04 : 0,
+                    },
+                  }}
+                  exit={{
+                    opacity: 0,
+                    scale: 0.96,
+                    transition: { duration: 0.15 },
+                  }}
+                  className="flex flex-col gap-1.5"
+                >
+                  {/* Timestamp above each card */}
+                  <TimestampBadge timestamp={timestamp} />
 
-                    {/* Asset card */}
-                    <ComponentCard asset={asset} />
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </motion.div>
-        )}
+                  {/* Asset card */}
+                  <ComponentCard asset={asset} />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
+      )}
 
-      </ContentContainer>
-
-      {/* ── Preview panel overlay ─────────────────────────────────────────── */}
-      {isPreviewOpen && <PreviewPanel />}
-
-    </div>
+    </ContentContainer>
   );
 });

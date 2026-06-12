@@ -5,9 +5,7 @@ import { ContentContainer } from '../components/ContentContainer';
 import { SectionTitle } from '../components/SectionTitle';
 import { IconButton } from '../components/IconButton';
 import { ComponentCard } from '../features/Components/ComponentCard';
-import { PreviewPanel } from '../features/Components/PreviewPanel';
 import { useFavoritesStore } from '../store/favoritesStore';
-import { useAssetStore } from '../store/assetStore';
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
@@ -81,73 +79,66 @@ function FavoritesEmptyState() {
  */
 export const FavoritesPage = memo(function FavoritesPage() {
   const { getFavoriteAssets, getFavoriteCount, clearFavorites } = useFavoritesStore();
-  const { isPreviewOpen } = useAssetStore();
 
   const favoriteAssets = getFavoriteAssets();
   const count = getFavoriteCount();
   const isEmpty = count === 0;
 
   return (
-    <div className="relative flex flex-col h-full overflow-hidden">
-      <ContentContainer className="flex-1 overflow-y-auto">
+    <ContentContainer className="flex-1 overflow-y-auto">
 
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <SectionTitle
-          title="Favorites"
-          subtitle={isEmpty ? 'No saved assets yet' : `${count} saved asset${count !== 1 ? 's' : ''}`}
-          action={
-            !isEmpty ? (
-              <IconButton
-                icon={<Trash2 size={11} />}
-                label="Clear all favorites"
-                size="sm"
-                variant="ghost"
-                onClick={clearFavorites}
-              />
-            ) : undefined
-          }
-        />
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <SectionTitle
+        title="Favorites"
+        subtitle={isEmpty ? 'No saved assets yet' : `${count} saved asset${count !== 1 ? 's' : ''}`}
+        action={
+          !isEmpty ? (
+            <IconButton
+              icon={<Trash2 size={11} />}
+              label="Clear all favorites"
+              size="sm"
+              variant="ghost"
+              onClick={clearFavorites}
+            />
+          ) : undefined
+        }
+      />
 
-        {/* ── Content ────────────────────────────────────────────────────── */}
-        {isEmpty ? (
-          <FavoritesEmptyState />
-        ) : (
-          <motion.div
-            layout
-            className="grid grid-cols-1 gap-2"
-          >
-            <AnimatePresence mode="popLayout" initial={false}>
-              {favoriteAssets.map((asset, index) => (
-                <motion.div
-                  key={asset.id}
-                  layout
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                    transition: {
-                      duration: 0.2,
-                      delay: index < 10 ? index * 0.04 : 0,
-                    },
-                  }}
-                  exit={{
-                    opacity: 0,
-                    scale: 0.96,
-                    transition: { duration: 0.15 },
-                  }}
-                >
-                  <ComponentCard asset={asset} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        )}
+      {/* ── Content ────────────────────────────────────────────────────── */}
+      {isEmpty ? (
+        <FavoritesEmptyState />
+      ) : (
+        <motion.div
+          layout
+          className="grid grid-cols-1 gap-2"
+        >
+          <AnimatePresence mode="popLayout" initial={false}>
+            {favoriteAssets.map((asset, index) => (
+              <motion.div
+                key={asset.id}
+                layout
+                initial={{ opacity: 0, y: 6 }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  transition: {
+                    duration: 0.2,
+                    delay: index < 10 ? index * 0.04 : 0,
+                  },
+                }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.96,
+                  transition: { duration: 0.15 },
+                }}
+              >
+                <ComponentCard asset={asset} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
+      )}
 
-      </ContentContainer>
-
-      {/* ── Preview panel overlay ─────────────────────────────────────────── */}
-      {isPreviewOpen && <PreviewPanel />}
-
-    </div>
+    </ContentContainer>
   );
 });
