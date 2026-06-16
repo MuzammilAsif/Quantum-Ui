@@ -6,7 +6,7 @@ import { useFavoritesStore } from '../../store/favoritesStore';
 import { useRecentStore } from '../../store/recentStore';
 import { useToast } from '../../hooks/useToast';
 import { cn } from '../../utils';
-import type { Asset } from '../components/types';
+import type { Asset } from '../Components/types';
 
 interface ComponentCardProps {
     asset: Asset;
