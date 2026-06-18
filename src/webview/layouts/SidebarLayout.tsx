@@ -4,9 +4,8 @@ import { Header } from '../components/Header';
 import { ScrollArea } from '../components/ScrollArea';
 import { ToastContainer } from '../components/ToastContainer';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { PreviewPanel } from '../features/Components/PreviewPanel';
+import { PreviewEngine } from '../features/preview/PreviewEngine';
 import { useNavigation } from '../hooks/useNavigation';
-import { useAssetStore } from '../store/assetStore';
 import { NAV_ITEMS_CONFIG } from '../constants';
 import { NavigationItem } from '../components/NavigationItem';
 import { cn } from '../utils';
@@ -35,7 +34,7 @@ const SettingsPage = lazy(() =>
   import('../pages/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
 
-// ── Page skeleton shown while lazy chunks load ─────────────────────────────
+// ── Page skeleton ──────────────────────────────────────────────────────────
 function PageSkeleton() {
   return (
     <div className="flex flex-col gap-3 px-3 py-3 animate-pulse">
@@ -92,12 +91,31 @@ function NavRail() {
 
 // ── Main SidebarLayout ─────────────────────────────────────────────────────
 
+/**
+ * SidebarLayout — top-level shell of the Quantum UI webview.
+ *
+ * The PreviewEngine lives HERE at the app level — completely outside
+ * all page components so navigation never affects its lifecycle.
+ *
+ * Structure:
+ * ┌─────────────────────────────┐
+ * │  Header                     │
+ * ├─────────────────────────────┤
+ * │  NavRail                    │
+ * ├─────────────────────────────┤
+ * │  ScrollArea                 │
+ * │    <ActivePage />           │
+ * ├─────────────────────────────┤
+ * │  PreviewEngine (global)     │ ← new Phase 2 engine
+ * │  ToastContainer             │
+ * └─────────────────────────────┘
+ */
 export const SidebarLayout = memo(function SidebarLayout() {
   const { activePage } = useNavigation();
-  const { isPreviewOpen, closePreview } = useAssetStore();
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-q-base bg-mesh relative">
+    <div className="flex flex-col h-full w-full overflow-hidden
+      bg-q-base bg-mesh relative">
 
       {/* Top header */}
       <Header />
@@ -119,9 +137,9 @@ export const SidebarLayout = memo(function SidebarLayout() {
         </ErrorBoundary>
       </ScrollArea>
 
-      {/* ── Global PreviewPanel ───────────────────────────────────────────── */}
-      {/* Rendered here so it is never affected by page navigation            */}
-      {isPreviewOpen && <PreviewPanel />}
+      {/* ── Global Preview Engine ─────────────────────────────────────────── */}
+      {/* Mounted once at app level — never remounts during navigation        */}
+      <PreviewEngine />
 
       {/* Toast overlay */}
       <ToastContainer />

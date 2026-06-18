@@ -6,3 +6,4 @@ export { useToastStore } from './toastStore';
 export { useAssetStore } from './assetStore';
 export { useFavoritesStore } from './favoritesStore';
 export { useRecentStore } from './recentStore';
+export { usePreviewStore } from './previewStore';
