@@ -1,11 +1,12 @@
-import { memo, useState, useCallback, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { PreviewSandbox } from './PreviewSandbox';
 import { PreviewLoading } from './PreviewLoading';
 import { PreviewError } from './PreviewError';
+import { PreviewResizeHandle } from './PreviewResizeHandle';
 import { usePreviewStore } from '../../store/previewStore';
 import { resolvePreviewHtml, getDeviceWidth } from './PreviewUtils';
 import { cn } from '../../utils';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 /**
  * PreviewRenderer — manages the full render lifecycle of a single asset preview.
@@ -177,6 +178,11 @@ export const PreviewRenderer = memo(function PreviewRenderer() {
                             onError={handleError}
                         />
                     </div>
+                )}
+
+                {/* ── Resize handle — only for custom device mode ───────────────── */}
+                {device === 'custom' && (
+                    <PreviewResizeHandle />
                 )}
 
             </div>

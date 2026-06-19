@@ -5,16 +5,13 @@ import {
   SlidersHorizontal,
   X,
   Layers,
-  Star,
 } from 'lucide-react';
 import { ContentContainer } from '../components/ContentContainer';
-// import { EmptyState } from '../Components/EmptyState';
-import { ComponentCard } from '../features/Components/ComponentCard';
-import { PreviewPanel } from '../features/Components/PreviewPanel';
-import { FilterPanel } from '../features/Components/FilterPanel';
-import { CategoryList } from '../features/Components/CategoryList';
+import { ComponentCard } from '../features/components/ComponentCard';
+import { FilterPanel } from '../features/components/FilterPanel';
+import { CategoryList } from '../features/components/CategoryList';
 import { useAssetStore } from '../store/assetStore';
-import { TOTAL_ASSET_COUNT } from '../features/Components/data';
+import { TOTAL_ASSET_COUNT } from '../features/components/data';
 import { SEARCH_DEBOUNCE_MS } from '../constants';
 import { cn } from '../utils';
 
@@ -158,7 +155,9 @@ function ResultsBar({
  * 4. CategoryList (collapsible)
  * 5. Results bar (shown when filtered)
  * 6. Asset grid (ComponentCard list)
- * 7. PreviewPanel (overlay, slides up on card click)
+ *
+ * Note: PreviewEngine is mounted globally in SidebarLayout, not here.
+ * Clicking a ComponentCard updates assetStore, which PreviewEngine watches.
  */
 export const ComponentsPage = memo(function ComponentsPage() {
   const {
@@ -239,156 +238,147 @@ export const ComponentsPage = memo(function ComponentsPage() {
   const showNoCategory = !isLoading && visibleAssets.length === 0 && localQuery.trim() === '';
 
   return (
-    // Relative so PreviewPanel can be positioned absolutely inside
-    <div className="relative flex flex-col h-full overflow-hidden">
+    <ContentContainer>
 
-      <ContentContainer className="flex-1 overflow-y-auto">
-
-        {/* ── Search bar ───────────────────────────────────────────────────── */}
-        <div className={cn(
-          'flex items-center gap-2 h-8 px-2.5 rounded-md',
-          'border bg-q-surface transition-all duration-150',
-          localQuery
-            ? 'border-[var(--q-accent-border)] shadow-[0_0_0_2px_var(--q-accent-subtle)]'
-            : 'border-q-border focus-within:border-[var(--q-accent-border)]'
-        )}>
-          <Search
-            size={11}
-            className="text-q-text-faint flex-shrink-0"
-            aria-hidden="true"
-          />
-
-          <input
-            type="text"
-            value={localQuery}
-            onChange={handleSearchChange}
-            placeholder={`Search ${TOTAL_ASSET_COUNT} assets…`}
-            aria-label="Search assets"
-            className="flex-1 bg-transparent text-xs text-q-text
-              placeholder:text-q-text-faint outline-none
-              caret-[var(--q-accent)]"
-          />
-
-          <AnimatePresence>
-            {localQuery && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.1 }}
-                onClick={handleClearSearch}
-                aria-label="Clear search"
-                className="flex-shrink-0 text-q-text-faint hover:text-q-text
-                  cursor-pointer transition-colors duration-100"
-              >
-                <X size={11} aria-hidden="true" />
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* ── Filter toggle row ─────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-2">
-          <motion.button
-            onClick={() => setIsFilterOpen((prev) => !prev)}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-            aria-expanded={isFilterOpen}
-            aria-label={isFilterOpen ? 'Close filters' : 'Open filters'}
-            className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md',
-              'text-2xs font-semibold border cursor-pointer transition-all duration-150',
-              isFilterOpen || hasActiveFilters
-                ? 'bg-[var(--q-accent-subtle)] border-[var(--q-accent-border)] text-[var(--q-accent)]'
-                : 'bg-q-elevated border-q-border text-q-text-muted hover:text-q-text hover:border-[var(--q-accent-border)]'
-            )}
-          >
-            <SlidersHorizontal size={11} aria-hidden="true" />
-            Filters
-            {hasActiveFilters && (
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--q-accent)]"
-                aria-hidden="true" />
-            )}
-          </motion.button>
-
-          {/* Asset count */}
-          <span className="text-2xs text-q-text-faint">
-            {visibleAssets.length} asset{visibleAssets.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-
-        {/* ── Filter panel ─────────────────────────────────────────────────── */}
-        <FilterPanel
-          isOpen={isFilterOpen}
-          onClose={() => setIsFilterOpen(false)}
+      {/* ── Search bar ───────────────────────────────────────────────────── */}
+      <div className={cn(
+        'flex items-center gap-2 h-8 px-2.5 rounded-md',
+        'border bg-q-surface transition-all duration-150',
+        localQuery
+          ? 'border-[var(--q-accent-border)] shadow-[0_0_0_2px_var(--q-accent-subtle)]'
+          : 'border-q-border focus-within:border-[var(--q-accent-border)]'
+      )}>
+        <Search
+          size={11}
+          className="text-q-text-faint flex-shrink-0"
+          aria-hidden="true"
         />
 
-        {/* ── Category list ─────────────────────────────────────────────────── */}
-        <CategoryList />
+        <input
+          type="text"
+          value={localQuery}
+          onChange={handleSearchChange}
+          placeholder={`Search ${TOTAL_ASSET_COUNT} assets…`}
+          aria-label="Search assets"
+          className="flex-1 bg-transparent text-xs text-q-text
+            placeholder:text-q-text-faint outline-none
+            caret-[var(--q-accent)]"
+        />
 
-        {/* ── Divider ──────────────────────────────────────────────────────── */}
-        <div className="q-divider" aria-hidden="true" />
-
-        {/* ── Results bar ──────────────────────────────────────────────────── */}
         <AnimatePresence>
-          {isFiltered && (
-            <ResultsBar
-              count={visibleAssets.length}
-              total={TOTAL_ASSET_COUNT}
-              isFiltered={isFiltered}
-              onClear={handleClearAll}
-            />
+          {localQuery && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.1 }}
+              onClick={handleClearSearch}
+              aria-label="Clear search"
+              className="flex-shrink-0 text-q-text-faint hover:text-q-text
+                cursor-pointer transition-colors duration-100"
+            >
+              <X size={11} aria-hidden="true" />
+            </motion.button>
           )}
         </AnimatePresence>
+      </div>
 
-        {/* ── Asset grid ───────────────────────────────────────────────────── */}
-        {isLoading ? (
-          // Loading skeletons
-          <div className="grid grid-cols-1 gap-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        ) : showNoResults ? (
-          // No search results
-          <NoResultsState
-            query={localQuery}
-            onClear={handleClearSearch}
+      {/* ── Filter toggle row ─────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-2">
+        <motion.button
+          onClick={() => setIsFilterOpen((prev) => !prev)}
+          whileTap={{ scale: 0.96 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+          aria-expanded={isFilterOpen}
+          aria-label={isFilterOpen ? 'Close filters' : 'Open filters'}
+          className={cn(
+            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md',
+            'text-2xs font-semibold border cursor-pointer transition-all duration-150',
+            isFilterOpen || hasActiveFilters
+              ? 'bg-[var(--q-accent-subtle)] border-[var(--q-accent-border)] text-[var(--q-accent)]'
+              : 'bg-q-elevated border-q-border text-q-text-muted hover:text-q-text hover:border-[var(--q-accent-border)]'
+          )}
+        >
+          <SlidersHorizontal size={11} aria-hidden="true" />
+          Filters
+          {hasActiveFilters && (
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--q-accent)]"
+              aria-hidden="true" />
+          )}
+        </motion.button>
+
+        {/* Asset count */}
+        <span className="text-2xs text-q-text-faint">
+          {visibleAssets.length} asset{visibleAssets.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* ── Filter panel ─────────────────────────────────────────────────── */}
+      <FilterPanel
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+      />
+
+      {/* ── Category list ─────────────────────────────────────────────────── */}
+      <CategoryList />
+
+      {/* ── Divider ──────────────────────────────────────────────────────── */}
+      <div className="q-divider" aria-hidden="true" />
+
+      {/* ── Results bar ──────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isFiltered && (
+          <ResultsBar
+            count={visibleAssets.length}
+            total={TOTAL_ASSET_COUNT}
+            isFiltered={isFiltered}
+            onClear={handleClearAll}
           />
-        ) : showNoCategory ? (
-          // No assets in this category yet
-          <NoCategoryState onClear={handleClearAll} />
-        ) : (
-          // Asset grid
-          <motion.div
-            layout
-            className="grid grid-cols-1 gap-2"
-          >
-            <AnimatePresence mode="popLayout" initial={false}>
-              {visibleAssets.map((asset, index) => (
-                <motion.div
-                  key={asset.id}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                    transition: {
-                      duration: 0.2,
-                      delay: index < 10 ? index * 0.03 : 0,
-                    },
-                  }}
-                  exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.1 } }}
-                >
-                  <ComponentCard asset={asset} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
         )}
+      </AnimatePresence>
 
-      </ContentContainer>
+      {/* ── Asset grid ───────────────────────────────────────────────────── */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : showNoResults ? (
+        <NoResultsState
+          query={localQuery}
+          onClear={handleClearSearch}
+        />
+      ) : showNoCategory ? (
+        <NoCategoryState onClear={handleClearAll} />
+      ) : (
+        <motion.div
+          layout
+          className="grid grid-cols-1 gap-2"
+        >
+          <AnimatePresence mode="popLayout" initial={false}>
+            {visibleAssets.map((asset, index) => (
+              <motion.div
+                key={asset.id}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  transition: {
+                    duration: 0.2,
+                    delay: index < 10 ? index * 0.03 : 0,
+                  },
+                }}
+                exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.1 } }}
+              >
+                <ComponentCard asset={asset} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
+      )}
 
-    </div>
+    </ContentContainer>
   );
 });
