@@ -238,10 +238,11 @@ class SidebarProvider {
         const csp = [
             `default-src 'none'`,
             `style-src ${webview.cspSource} 'unsafe-inline'`,
-            `script-src 'nonce-${nonce}' ${webview.cspSource}`,
+            `script-src 'nonce-${nonce}' 'unsafe-eval' ${webview.cspSource}`,
             `font-src ${webview.cspSource} data:`,
             `img-src ${webview.cspSource} https: data:`,
             `connect-src https://api.quantumui.dev`,
+            `frame-src 'self'`,
         ].join('; ');
         return /* html */ `<!DOCTYPE html>
 <html lang="en" class="dark">
@@ -281,10 +282,11 @@ class SidebarProvider {
         QUANTUM UI
       </div>
     </div>
-    <script nonce="${nonce}">
+<script nonce="${nonce}">
       // Inject VS Code API reference before React loads
       window.__VSCODE_API__ = acquireVsCodeApi();
       window.__QUANTUM_UI_VERSION__ = '${EXTENSION_VERSION}';
+      window.__CSP_NONCE__ = '${nonce}';
     </script>
     <script nonce="${nonce}" type="module" src="${scriptUri.toString()}"></script>
   </body>

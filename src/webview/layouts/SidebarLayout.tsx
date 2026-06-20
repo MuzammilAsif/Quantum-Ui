@@ -4,7 +4,10 @@ import { Header } from '../components/Header';
 import { ScrollArea } from '../components/ScrollArea';
 import { ToastContainer } from '../components/ToastContainer';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { PreviewEngine } from '../features/preview/PreviewEngine';
+// import { PreviewEngine } from '../features/preview/PreviewEngine';
+const PreviewEngine = lazy(() =>
+  import('../features/preview/PreviewEngine').then((m) => ({ default: m.PreviewEngine }))
+);
 import { useNavigation } from '../hooks/useNavigation';
 import { NAV_ITEMS_CONFIG } from '../constants';
 import { NavigationItem } from '../components/NavigationItem';
@@ -139,7 +142,10 @@ export const SidebarLayout = memo(function SidebarLayout() {
 
       {/* ── Global Preview Engine ─────────────────────────────────────────── */}
       {/* Mounted once at app level — never remounts during navigation        */}
-      <PreviewEngine />
+      {/* Lazy-loaded — its chunk only downloads the first time a preview opens */}
+      <Suspense fallback={null}>
+        <PreviewEngine />
+      </Suspense>
 
       {/* Toast overlay */}
       <ToastContainer />

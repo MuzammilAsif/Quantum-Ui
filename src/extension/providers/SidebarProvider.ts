@@ -244,7 +244,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const distFiles = fs.readdirSync(webviewDistPath.fsPath);
 
     const jsFile = distFiles.find((f) => f.endsWith('.js') && !f.includes('chunk')) ?? 'main.js';
-    
+
     let cssFile = 'style.css';
     const assetsPath = vscode.Uri.joinPath(webviewDistPath, 'assets');
     if (fs.existsSync(assetsPath.fsPath)) {
@@ -264,14 +264,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     // const scriptUri = getWebviewUri(webview, this.extensionUri, 'main.js');
     // const styleUri = getWebviewUri(webview, this.extensionUri, 'style.css');
 
+
     // Strict Content Security Policy
     const csp = [
       `default-src 'none'`,
       `style-src ${webview.cspSource} 'unsafe-inline'`,
-      `script-src 'nonce-${nonce}' ${webview.cspSource}`,
+      `script-src 'nonce-${nonce}' 'unsafe-eval' ${webview.cspSource}`,
       `font-src ${webview.cspSource} data:`,
       `img-src ${webview.cspSource} https: data:`,
       `connect-src https://api.quantumui.dev`,
+      `frame-src 'self'`,
     ].join('; ');
 
     return /* html */ `<!DOCTYPE html>
@@ -312,10 +314,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         QUANTUM UI
       </div>
     </div>
-    <script nonce="${nonce}">
+<script nonce="${nonce}">
       // Inject VS Code API reference before React loads
       window.__VSCODE_API__ = acquireVsCodeApi();
       window.__QUANTUM_UI_VERSION__ = '${EXTENSION_VERSION}';
+      window.__CSP_NONCE__ = '${nonce}';
     </script>
     <script nonce="${nonce}" type="module" src="${scriptUri.toString()}"></script>
   </body>

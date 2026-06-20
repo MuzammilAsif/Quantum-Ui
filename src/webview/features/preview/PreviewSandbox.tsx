@@ -2,11 +2,11 @@ import { memo, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { PreviewTheme } from './types';
 
 interface PreviewSandboxProps {
-    html: string | null;
-    theme: PreviewTheme;
-    width: number | null;
-    onError: (message: string) => void;
-    onReady: () => void;
+  html: string | null;
+  theme: PreviewTheme;
+  width: number | null;
+  onError: (message: string) => void;
+  onReady: () => void;
 }
 
 // ─── Sandbox document template ────────────────────────────────────────────────
@@ -17,17 +17,17 @@ interface PreviewSandboxProps {
 // - Wraps content in error-catching script
 // - Reports errors and ready state to the parent via postMessage
 
-function buildSandboxDocument(html: string, theme: PreviewTheme): string {
-    const bgColor = theme === 'dark' ? '#0a0a12' : '#ffffff';
-    const textColor = theme === 'dark' ? '#e8e8ff' : '#1a1a2e';
+function buildSandboxDocument(html: string, theme: PreviewTheme, nonce: string): string {
+  const bgColor = theme === 'dark' ? '#0a0a12' : '#ffffff';
+  const textColor = theme === 'dark' ? '#e8e8ff' : '#1a1a2e';
 
-    return /* html */ `<!DOCTYPE html>
+  return /* html */ `<!DOCTYPE html>
 <html lang="en" class="${theme}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
+    <script nonce="${nonce}" src="https://cdn.tailwindcss.com"></script>
+    <script nonce="${nonce}">
       tailwind.config = {
         darkMode: 'class',
         theme: {
@@ -70,7 +70,7 @@ function buildSandboxDocument(html: string, theme: PreviewTheme): string {
   <body>
     <div id="preview-root">${html}</div>
 
-    <script>
+   <script nonce="${nonce}">
       // ── Error capture ────────────────────────────────────────────────────
       window.addEventListener('error', function (event) {
         window.parent.postMessage({
@@ -114,71 +114,72 @@ function buildSandboxDocument(html: string, theme: PreviewTheme): string {
  * is passed in as props from PreviewRenderer.
  */
 export const PreviewSandbox = memo(function PreviewSandbox({
-    html,
-    theme,
-    width,
-    onError,
-    onReady,
+  html,
+  theme,
+  width,
+  onError,
+  onReady,
 }: PreviewSandboxProps) {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-    // ── Build the sandbox document whenever html or theme changes ─────────────
-    const srcDoc = useMemo(() => {
-        if (!html) return null;
-        return buildSandboxDocument(html, theme);
-    }, [html, theme]);
+  // ── Build the sandbox document whenever html or theme changes ─────────────
+  const srcDoc = useMemo(() => {
+    if (!html) return null;
+    const nonce = (window as unknown as { __CSP_NONCE__?: string }).__CSP_NONCE__ ?? '';
+    return buildSandboxDocument(html, theme, nonce);
+  }, [html, theme]);
 
-    // ── Listen for messages from the sandboxed iframe ──────────────────────────
-    const handleMessage = useCallback(
-        (event: MessageEvent) => {
-            // Only accept messages from our own iframe
-            if (event.source !== iframeRef.current?.contentWindow) {
-                return;
-            }
+  // ── Listen for messages from the sandboxed iframe ──────────────────────────
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      // Only accept messages from our own iframe
+      if (event.source !== iframeRef.current?.contentWindow) {
+        return;
+      }
 
-            const data = event.data as { type?: string; payload?: { message?: string } };
+      const data = event.data as { type?: string; payload?: { message?: string } };
 
-            if (data?.type === 'SANDBOX_READY') {
-                onReady();
-            }
+      if (data?.type === 'SANDBOX_READY') {
+        onReady();
+      }
 
-            if (data?.type === 'SANDBOX_ERROR') {
-                onError(data.payload?.message ?? 'Unknown preview error');
-            }
-        },
-        [onError, onReady]
-    );
+      if (data?.type === 'SANDBOX_ERROR') {
+        onError(data.payload?.message ?? 'Unknown preview error');
+      }
+    },
+    [onError, onReady]
+  );
 
-    useEffect(() => {
-        window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
-    }, [handleMessage]);
+  useEffect(() => {
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [handleMessage]);
 
-    // ── Reset ready state when html changes (new render cycle) ────────────────
-    useEffect(() => {
-        if (!srcDoc) {
-            onError('No preview content available');
-        }
-    }, [srcDoc, onError]);
-
+  // ── Reset ready state when html changes (new render cycle) ────────────────
+  useEffect(() => {
     if (!srcDoc) {
-        return null;
+      onError('No preview content available');
     }
+  }, [srcDoc, onError]);
 
-    return (
-        <iframe
-            ref={iframeRef}
-            title="Component preview"
-            srcDoc={srcDoc}
-            sandbox="allow-scripts"
-            className="w-full h-full border-0 bg-transparent"
-            style={{
-                width: width !== null ? `${width}px` : '100%',
-                maxWidth: '100%',
-                transition: 'width 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
-        // Isolation: scripts allowed for Tailwind CDN + error reporting,
-        // but no same-origin, no top navigation, no popups, no forms.
-        />
-    );
+  if (!srcDoc) {
+    return null;
+  }
+
+  return (
+    <iframe
+      ref={iframeRef}
+      title="Component preview"
+      srcDoc={srcDoc}
+      sandbox="allow-scripts"
+      className="w-full h-full border-0 bg-transparent"
+      style={{
+        width: width !== null ? `${width}px` : '100%',
+        maxWidth: '100%',
+        transition: 'width 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
+    // Isolation: scripts allowed for Tailwind CDN + error reporting,
+    // but no same-origin, no top navigation, no popups, no forms.
+    />
+  );
 });

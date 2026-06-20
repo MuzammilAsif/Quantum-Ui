@@ -2,6 +2,7 @@ import { PreviewSandbox } from './PreviewSandbox';
 import { PreviewLoading } from './PreviewLoading';
 import { PreviewError } from './PreviewError';
 import { PreviewResizeHandle } from './PreviewResizeHandle';
+import { PreviewDeviceFrame } from './PreviewDeviceFrame';
 import { usePreviewStore } from '../../store/previewStore';
 import { resolvePreviewHtml, getDeviceWidth } from './PreviewUtils';
 import { cn } from '../../utils';
@@ -26,10 +27,12 @@ export const PreviewRenderer = memo(function PreviewRenderer() {
         customWidth,
         theme,
         renderStatus,
+        renderError,
         setRenderStatus,
         setRenderError,
         setViewMode,
         markRendered,
+        isRendered,
     } = usePreviewStore();
 
     // ── Sandbox key — incrementing this forces a full iframe remount ──────────
@@ -50,7 +53,6 @@ export const PreviewRenderer = memo(function PreviewRenderer() {
         if (asset.id === prevAssetId.current) return;
 
         prevAssetId.current = asset.id;
-        setRenderStatus('loading');
         setRenderError(null);
 
         // If no previewable HTML exists mark as error immediately
@@ -60,10 +62,37 @@ export const PreviewRenderer = memo(function PreviewRenderer() {
                 message: 'No preview available for this component. View the source code instead.',
                 timestamp: Date.now(),
             });
+            return;
         }
-    }, [asset, html, setRenderStatus, setRenderError]);
 
-    // ── Sandbox ready callback ────────────────────────────────────────────────
+        // Performance: if this asset was already rendered once this session,
+        // skip the loading skeleton entirely for an instant feel.
+        // The sandbox still mounts fresh underneath (isolation is preserved),
+        // but the user sees no flash of the loading state.
+        setRenderStatus(isRendered(asset.id) ? 'ready' : 'loading');
+    }, [asset, html, setRenderStatus, setRenderError, isRendered]);
+
+    // ── Timeout safeguard ───────────────────────────────────────────────────
+    // If the sandbox never reports ready (blocked iframe, network issue),
+    // surface an error instead of spinning forever.
+    useEffect(() => {
+        if (!html) return undefined;
+
+        const timeoutId = setTimeout(() => {
+            const currentStatus = usePreviewStore.getState().renderStatus;
+            if (currentStatus === 'loading') {
+                setRenderError({
+                    message:
+                        'Preview took too long to load. This may be caused by a blocked network resource.',
+                    timestamp: Date.now(),
+                });
+                setRenderStatus('error');
+            }
+        }, 6000);
+
+        return () => clearTimeout(timeoutId);
+    }, [html, sandboxKey, setRenderStatus, setRenderError]);
+
     const handleReady = useCallback(() => {
         setRenderStatus('ready');
         if (asset) {
@@ -95,97 +124,105 @@ export const PreviewRenderer = memo(function PreviewRenderer() {
     if (!asset) return null;
 
     return (
-        <div className="relative flex-1 flex items-center justify-center
-      overflow-hidden bg-q-surface">
+        <div
+            className="relative flex-1 flex items-center justify-center
+        overflow-hidden p-4"
+            style={{
+                background:
+                    theme === 'dark'
+                        ? 'radial-gradient(ellipse at center, #14141f 0%, #0a0a12 100%)'
+                        : 'radial-gradient(ellipse at center, #f8fafc 0%, #f1f5f9 100%)',
+            }}
+        >
+            {/* ── Device frame wrapper ─────────────────────────────────────────── */}
+            <PreviewDeviceFrame device={device} width={deviceWidth}>
 
-            {/* ── Device width constraint wrapper ─────────────────────────────── */}
-            <div
-                className={cn(
-                    'relative h-full flex flex-col overflow-hidden',
-                    'transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]',
-                    deviceWidth !== null
-                        ? 'shadow-[0_0_0_1px_rgba(255,255,255,0.06)] rounded-sm'
-                        : 'w-full'
-                )}
-                style={{
-                    width: deviceWidth !== null ? `${deviceWidth}px` : '100%',
-                    maxWidth: '100%',
-                }}
-            >
-                {/* ── Grid pattern background ────────────────────────────────────── */}
-                <div
-                    aria-hidden="true"
-                    className="absolute inset-0 pointer-events-none opacity-20"
-                    style={{
-                        backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)
-            `,
-                        backgroundSize: '20px 20px',
-                    }}
-                />
+                <div className="relative w-full h-full">
 
-                {/* ── Loading state ────────────────────────────────────────────── */}
-                <AnimatePresence>
-                    {renderStatus === 'loading' && html && (
-                        <motion.div
-                            key="loading"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute inset-0 z-10"
-                        >
-                            <PreviewLoading theme={theme} />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                    {/* ── Grid pattern background ──────────────────────────────────── */}
+                    <div
+                        aria-hidden="true"
+                        className="absolute inset-0 pointer-events-none opacity-[0.07]"
+                        style={{
+                            backgroundImage: `
+                linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)
+              `,
+                            backgroundSize: '20px 20px',
+                        }}
+                    />
 
-                {/* ── Error state ──────────────────────────────────────────────── */}
-                <AnimatePresence>
-                    {renderStatus === 'error' && (
-                        <motion.div
-                            key="error"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute inset-0 z-10"
-                        >
-                            <PreviewError
-                                message={
-                                    'No preview available. View the source code instead.'
-                                }
-                                onRetry={handleRetry}
-                                onViewCode={handleViewCode}
+                    {/* ── Loading state ──────────────────────────────────────────── */}
+                    <AnimatePresence>
+                        {renderStatus === 'loading' && html && (
+                            <motion.div
+                                key="loading"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute inset-0 z-10"
+                            >
+                                <PreviewLoading theme={theme} />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* ── Error state ─────────────────────────────────────────────── */}
+                    <AnimatePresence>
+                        {renderStatus === 'error' && (
+                            <motion.div
+                                key="error"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute inset-0 z-10"
+                            >
+                                <PreviewError
+                                    message={
+                                        renderError?.message ??
+                                        'No preview available. View the source code instead.'
+                                    }
+                                    onRetry={handleRetry}
+                                    onViewCode={handleViewCode}
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* ── Sandbox iframe ──────────────────────────────────────────── */}
+                    {html && renderStatus !== 'error' && (
+                        <div className={cn(
+                            'w-full h-full transition-opacity duration-200',
+                            renderStatus === 'loading' ? 'opacity-0' : 'opacity-100'
+                        )}>
+                            <PreviewSandbox
+                                key={sandboxKey}
+                                html={html}
+                                theme={theme}
+                                width={null}
+                                onReady={handleReady}
+                                onError={handleError}
                             />
-                        </motion.div>
+                        </div>
                     )}
-                </AnimatePresence>
 
-                {/* ── Sandbox iframe ────────────────────────────────────────────── */}
-                {html && renderStatus !== 'error' && (
-                    <div className={cn(
-                        'w-full h-full transition-opacity duration-200',
-                        renderStatus === 'loading' ? 'opacity-0' : 'opacity-100'
-                    )}>
-                        <PreviewSandbox
-                            key={sandboxKey}
-                            html={html}
-                            theme={theme}
-                            width={null}
-                            onReady={handleReady}
-                            onError={handleError}
-                        />
-                    </div>
-                )}
+                </div>
+            </PreviewDeviceFrame>
 
-                {/* ── Resize handle — only for custom device mode ───────────────── */}
-                {device === 'custom' && (
+            {/* ── Resize handle — sits outside the frame, only custom mode ─────── */}
+            {device === 'custom' && (
+                <div
+                    className="absolute top-1/2 -translate-y-1/2"
+                    style={{
+                        left: `calc(50% + ${(deviceWidth ?? 375) / 2}px + 16px)`,
+                    }}
+                >
                     <PreviewResizeHandle />
-                )}
+                </div>
+            )}
 
-            </div>
         </div>
     );
 });

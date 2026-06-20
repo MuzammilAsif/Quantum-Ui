@@ -5,6 +5,7 @@ import { PreviewToolbar } from './PreviewToolbar';
 import { PreviewRenderer } from './PreviewRenderer';
 import { PreviewCodeViewer } from './PreviewCodeViewer';
 import { PreviewMetadata } from './PreviewMetadata';
+import { PreviewErrorBoundary } from './PreviewErrorBoundary';
 import { usePreviewStore } from '../../store/previewStore';
 import { useAssetStore } from '../../store/assetStore';
 import { useRecentStore } from '../../store/recentStore';
@@ -175,30 +176,32 @@ export const PreviewEngine = memo(function PreviewEngine() {
                         {/* ── Toolbar ────────────────────────────────────────────────── */}
                         <PreviewToolbar onRefresh={handleRefresh} />
 
-                        {/* ── Content area ───────────────────────────────────────────── */}
-                        <div className="flex-1 flex overflow-hidden min-h-0">
+                        {/* ── Content area — wrapped in error boundary ─────────────────── */}
+                        <PreviewErrorBoundary onReset={handleClose}>
+                            <div className="flex-1 flex overflow-hidden min-h-0">
 
-                            {/* Preview mode — renderer only */}
-                            {viewMode === 'preview' && (
-                                <PreviewRenderer />
-                            )}
+                                {/* Preview mode — renderer only */}
+                                {viewMode === 'preview' && (
+                                    <PreviewRenderer />
+                                )}
 
-                            {/* Code mode — code viewer only */}
-                            {viewMode === 'code' && (
-                                <PreviewCodeViewer className="flex-1" />
-                            )}
+                                {/* Code mode — code viewer only */}
+                                {viewMode === 'code' && (
+                                    <PreviewCodeViewer className="flex-1" />
+                                )}
 
-                            {/* Split mode — renderer + code side by side */}
-                            {viewMode === 'split' && (
-                                <>
-                                    <div className="flex-1 min-w-0 overflow-hidden">
-                                        <PreviewRenderer />
-                                    </div>
-                                    <PreviewCodeViewer className="w-[45%] flex-shrink-0" />
-                                </>
-                            )}
+                                {/* Split mode — renderer + code side by side */}
+                                {viewMode === 'split' && (
+                                    <>
+                                        <div className="flex-1 min-w-0 overflow-hidden">
+                                            <PreviewRenderer />
+                                        </div>
+                                        <PreviewCodeViewer className="w-[45%] flex-shrink-0" />
+                                    </>
+                                )}
 
-                        </div>
+                            </div>
+                        </PreviewErrorBoundary>
 
                         {/* ── Metadata panel ─────────────────────────────────────────── */}
                         {(viewMode === 'preview' || viewMode === 'split') && (
