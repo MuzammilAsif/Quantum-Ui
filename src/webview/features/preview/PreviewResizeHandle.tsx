@@ -12,19 +12,28 @@ interface PreviewResizeHandleProps {
  * PreviewResizeHandle — drag handle for live viewport resizing.
  *
  * Only rendered when device mode is 'custom'.
- * Dragging left/right adjusts customWidth in real time.
- * Also supports keyboard resizing via arrow keys when focused.
+ * Sends SANDBOX_RESIZE to the iframe on every move tick so the
+ * content reflows smoothly without any snap-back.
  */
 export const PreviewResizeHandle = memo(function PreviewResizeHandle({
     className,
 }: PreviewResizeHandleProps) {
     const { customWidth, setCustomWidth } = usePreviewStore();
     const [isDragging, setIsDragging] = useState(false);
+    const [liveWidth, setLiveWidth] = useState(customWidth);
 
     const startXRef = useRef(0);
     const startWidthRef = useRef(0);
 
-    // ── Pointer drag resize ─────────────────────────────────────────────────────
+    // ── Send resize signal to the sandbox iframe ──────────────────────────────
+    const notifySandbox = useCallback(() => {
+        const iframe = document.querySelector<HTMLIFrameElement>(
+            'iframe[title="Component preview"]'
+        );
+        iframe?.contentWindow?.postMessage({ type: 'SANDBOX_RESIZE' }, '*');
+    }, []);
+
+    // ── Pointer drag ──────────────────────────────────────────────────────────
     const handlePointerDown = useCallback(
         (e: React.PointerEvent<HTMLDivElement>) => {
             e.preventDefault();
@@ -33,11 +42,15 @@ export const PreviewResizeHandle = memo(function PreviewResizeHandle({
             startWidthRef.current = customWidth;
 
             const handlePointerMove = (moveEvent: PointerEvent) => {
-                // Multiply by 2 since the container is centered —
-                // moving the handle by X pixels grows the box by 2X total width
                 const delta = (moveEvent.clientX - startXRef.current) * 2;
                 const newWidth = clampWidth(startWidthRef.current + delta);
+
+                // Update both local display and store
+                setLiveWidth(newWidth);
                 setCustomWidth(newWidth);
+
+                // Notify sandbox so content reflows immediately
+                notifySandbox();
             };
 
             const handlePointerUp = () => {
@@ -49,22 +62,28 @@ export const PreviewResizeHandle = memo(function PreviewResizeHandle({
             window.addEventListener('pointermove', handlePointerMove);
             window.addEventListener('pointerup', handlePointerUp);
         },
-        [customWidth, setCustomWidth]
+        [customWidth, setCustomWidth, notifySandbox]
     );
 
-    // ── Keyboard resize (accessibility) ─────────────────────────────────────────
+    // ── Keyboard resize ───────────────────────────────────────────────────────
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLDivElement>) => {
             if (e.key === 'ArrowLeft') {
                 e.preventDefault();
-                setCustomWidth(clampWidth(customWidth - 10));
+                const next = clampWidth(customWidth - 10);
+                setLiveWidth(next);
+                setCustomWidth(next);
+                notifySandbox();
             }
             if (e.key === 'ArrowRight') {
                 e.preventDefault();
-                setCustomWidth(clampWidth(customWidth + 10));
+                const next = clampWidth(customWidth + 10);
+                setLiveWidth(next);
+                setCustomWidth(next);
+                notifySandbox();
             }
         },
-        [customWidth, setCustomWidth]
+        [customWidth, setCustomWidth, notifySandbox]
     );
 
     return (
@@ -77,8 +96,8 @@ export const PreviewResizeHandle = memo(function PreviewResizeHandle({
                 aria-label="Resize preview viewport width"
                 aria-valuemin={240}
                 aria-valuemax={1200}
-                aria-valuenow={customWidth}
-                aria-valuetext={`${customWidth} pixels`}
+                aria-valuenow={liveWidth}
+                aria-valuetext={`${liveWidth} pixels`}
                 tabIndex={0}
                 className={cn(
                     'absolute top-0 bottom-0 right-0 translate-x-1/2 z-20',
@@ -87,15 +106,17 @@ export const PreviewResizeHandle = memo(function PreviewResizeHandle({
                     className
                 )}
             >
-                <div className={cn(
-                    'w-1 h-10 rounded-full transition-colors duration-150',
-                    isDragging
-                        ? 'bg-[var(--q-accent)]'
-                        : 'bg-q-border group-hover:bg-[var(--q-accent-border)] group-focus-visible:bg-[var(--q-accent)]'
-                )} />
+                <div
+                    className={cn(
+                        'w-1 h-10 rounded-full transition-colors duration-150',
+                        isDragging
+                            ? 'bg-[var(--q-accent)]'
+                            : 'bg-q-border group-hover:bg-[var(--q-accent-border)] group-focus-visible:bg-[var(--q-accent)]'
+                    )}
+                />
             </motion.div>
 
-            {/* ── Width readout — shown while dragging ────────────────────────────── */}
+            {/* ── Width readout — shown while dragging ─────────────────────────── */}
             <AnimatePresence>
                 {isDragging && (
                     <motion.div
@@ -105,10 +126,10 @@ export const PreviewResizeHandle = memo(function PreviewResizeHandle({
                         transition={{ duration: 0.1 }}
                         className="absolute -top-7 left-1/2 -translate-x-1/2 z-20
               px-2 py-0.5 rounded-md bg-q-elevated border border-q-border
-              text-2xs font-mono font-semibold text-q-text whitespace-nowrap
-              shadow-q-md"
+              text-2xs font-mono font-semibold text-q-text
+              whitespace-nowrap shadow-q-md pointer-events-none"
                     >
-                        {customWidth}px
+                        {liveWidth}px
                     </motion.div>
                 )}
             </AnimatePresence>

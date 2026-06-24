@@ -1,6 +1,5 @@
 import { memo, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Circle } from 'lucide-react';
 import { usePreviewStore } from '../../store/previewStore';
 import { formatDeviceWidth } from './PreviewUtils';
 import { cn } from '../../utils';
@@ -13,15 +12,10 @@ interface PreviewDeviceFrameProps {
 }
 
 /**
- * PreviewDeviceFrame — adds a subtle visual chrome around the preview
- * based on the active device mode.
+ * PreviewDeviceFrame — visual chrome around the preview area.
  *
- * Desktop: thin browser-bar chrome (traffic-light dots + width readout)
- * Tablet/Mobile/Custom: rounded device bezel
- *
- * Visual inspiration: Vercel deploy previews, Figma device frames,
- * Framer canvas, VS Code panels. Deliberately subtle — no flashy motion,
- * just clean spacing and soft shadows.
+ * Desktop: thin browser-bar chrome, full height, no border radius
+ * Tablet/Mobile/Custom: rounded device bezel, centered, constrained
  */
 export const PreviewDeviceFrame = memo(function PreviewDeviceFrame({
     device,
@@ -36,15 +30,27 @@ export const PreviewDeviceFrame = memo(function PreviewDeviceFrame({
             layout
             transition={{ type: 'spring', stiffness: 350, damping: 32, mass: 0.8 }}
             className={cn(
-                'relative flex flex-col h-full overflow-hidden',
+                'relative flex flex-col overflow-hidden',
+                // Desktop fills all available space
+                // Framed devices are contained and centered
                 isFramed
-                    ? 'rounded-xl border border-q-border shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
-                    : 'rounded-sm border border-q-border-subtle shadow-[0_2px_8px_rgba(0,0,0,0.2)]'
+                    ? 'rounded-xl border border-q-border shadow-[0_8px_24px_rgba(0,0,0,0.35)] self-center'
+                    : 'flex-1 w-full rounded-none border-x border-q-border-subtle'
             )}
-            style={{
-                width: width !== null ? `${width}px` : '100%',
-                maxWidth: '100%',
-            }}
+            style={
+                isFramed
+                    ? {
+                        width: width !== null ? `${width}px` : '100%',
+                        maxWidth: '100%',
+                        // Framed devices: fixed height so they feel like real devices
+                        height: device === 'tablet' ? '640px' : '600px',
+                        maxHeight: '100%',
+                    }
+                    : {
+                        // Desktop: stretch to fill entire preview area
+                        height: '100%',
+                    }
+            }
         >
             {/* ── Chrome bar ───────────────────────────────────────────────────── */}
             <div
@@ -54,21 +60,30 @@ export const PreviewDeviceFrame = memo(function PreviewDeviceFrame({
                     isFramed ? 'h-7' : 'h-6'
                 )}
             >
-                {/* Traffic-light dots — only on desktop chrome */}
+                {/* Traffic-light dots — desktop chrome */}
                 {!isFramed && (
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <Circle size={6} className="fill-q-border text-q-border" />
-                        <Circle size={6} className="fill-q-border text-q-border" />
-                        <Circle size={6} className="fill-q-border text-q-border" />
+                        {['bg-red-500/40', 'bg-amber-500/40', 'bg-emerald-500/40'].map(
+                            (color, i) => (
+                                <div
+                                    key={i}
+                                    className={cn('w-2 h-2 rounded-full', color)}
+                                    aria-hidden="true"
+                                />
+                            )
+                        )}
                     </div>
                 )}
 
-                {/* Device pill — only on framed (tablet/mobile/custom) */}
+                {/* Device pill — framed devices */}
                 {isFramed && (
-                    <div className="w-8 h-1 rounded-full bg-q-border mx-auto" />
+                    <div
+                        className="w-8 h-1 rounded-full bg-q-border mx-auto"
+                        aria-hidden="true"
+                    />
                 )}
 
-                {/* Width readout — desktop only, right aligned */}
+                {/* Width readout — desktop only */}
                 {!isFramed && (
                     <span className="ml-auto text-2xs font-mono text-q-text-ghost">
                         {formatDeviceWidth(width)}
@@ -76,12 +91,13 @@ export const PreviewDeviceFrame = memo(function PreviewDeviceFrame({
                 )}
             </div>
 
-            {/* ── Frame content — the actual sandbox sits inside ─────────────────── */}
+            {/* ── Frame content ─────────────────────────────────────────────────── */}
             <div
                 className={cn(
                     'flex-1 overflow-hidden',
                     theme === 'dark' ? 'bg-[#0a0a12]' : 'bg-white'
                 )}
+                style={{ height: 'calc(100% - 24px)' }}
             >
                 {children}
             </div>

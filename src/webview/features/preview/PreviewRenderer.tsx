@@ -125,13 +125,14 @@ export const PreviewRenderer = memo(function PreviewRenderer() {
 
     return (
         <div
-            className="relative flex-1 flex items-center justify-center
-        overflow-hidden p-4"
+            className="relative flex-1 flex items-stretch justify-center
+        overflow-hidden"
             style={{
                 background:
                     theme === 'dark'
                         ? 'radial-gradient(ellipse at center, #14141f 0%, #0a0a12 100%)'
                         : 'radial-gradient(ellipse at center, #f8fafc 0%, #f1f5f9 100%)',
+                padding: device === 'desktop' ? '0' : '16px',
             }}
         >
             {/* ── Device frame wrapper ─────────────────────────────────────────── */}

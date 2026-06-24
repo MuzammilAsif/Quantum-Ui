@@ -11,41 +11,6 @@ import { useAssetStore } from '../../store/assetStore';
 import { useRecentStore } from '../../store/recentStore';
 import { cn } from '../../utils';
 
-/**
- * PreviewEngine — the complete preview system orchestrator.
- *
- * Replaces the old PreviewPanel entirely.
- *
- * Layout modes:
- *
- * PREVIEW mode:
- * ┌─────────────────────┐
- * │ Toolbar             │
- * ├─────────────────────┤
- * │ PreviewRenderer     │ ← flex-1
- * ├─────────────────────┤
- * │ PreviewMetadata     │ ← collapsible
- * └─────────────────────┘
- *
- * CODE mode:
- * ┌─────────────────────┐
- * │ Toolbar             │
- * ├─────────────────────┤
- * │ PreviewCodeViewer   │ ← flex-1
- * └─────────────────────┘
- *
- * SPLIT mode:
- * ┌──────────┬──────────┐
- * │ Toolbar  (spans both)│
- * ├──────────┬──────────┤
- * │ Preview  │ Code     │ ← flex-1
- * ├──────────┴──────────┤
- * │ PreviewMetadata     │ ← collapsible
- * └─────────────────────┘
- *
- * FULLSCREEN mode:
- * Expands to fill the entire sidebar panel.
- */
 export const PreviewEngine = memo(function PreviewEngine() {
     const {
         asset,
@@ -62,8 +27,6 @@ export const PreviewEngine = memo(function PreviewEngine() {
     const { addRecentItem } = useRecentStore();
 
     // ── Sync assetStore selection → previewStore ──────────────────────────────
-    // When ComponentCard calls assetStore.selectAsset(),
-    // we mirror that into the previewStore here.
     useEffect(() => {
         if (assetPreviewOpen && selectedAsset) {
             openPreview(selectedAsset);
@@ -71,7 +34,7 @@ export const PreviewEngine = memo(function PreviewEngine() {
         }
     }, [assetPreviewOpen, selectedAsset, openPreview, addRecentItem]);
 
-    // ── Close both stores when user dismisses ─────────────────────────────────
+    // ── Close both stores simultaneously ──────────────────────────────────────
     const handleClose = useCallback(() => {
         closePreview();
         useAssetStore.getState().closePreview();
@@ -88,17 +51,22 @@ export const PreviewEngine = memo(function PreviewEngine() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, handleClose]);
 
-    // ── Refresh handler — resets render status to trigger re-render ───────────
+    // ── Refresh handler ───────────────────────────────────────────────────────
     const handleRefresh = useCallback(() => {
         setRenderStatus('loading');
         setTimeout(() => setRenderStatus('loading'), 50);
     }, [setRenderStatus]);
 
+    // ── CRITICAL: Two SEPARATE AnimatePresence instances ──────────────────────
+    // AnimatePresence does NOT work with React Fragments as direct children.
+    // Backdrop and panel MUST be in their own AnimatePresence so exit animations
+    // fire correctly and both elements unmount fully when isOpen becomes false.
+
     return (
-        <AnimatePresence>
-            {isOpen && asset && (
-                <>
-                    {/* ── Backdrop ─────────────────────────────────────────────────── */}
+        <>
+            {/* ── Backdrop — own AnimatePresence ────────────────────────────────── */}
+            <AnimatePresence>
+                {isOpen && asset && (
                     <motion.div
                         key="preview-backdrop"
                         initial={{ opacity: 0 }}
@@ -109,8 +77,12 @@ export const PreviewEngine = memo(function PreviewEngine() {
                         className="absolute inset-0 z-20 bg-q-void/50 backdrop-blur-sm"
                         aria-hidden="true"
                     />
+                )}
+            </AnimatePresence>
 
-                    {/* ── Main panel ───────────────────────────────────────────────── */}
+            {/* ── Main panel — own AnimatePresence ─────────────────────────────── */}
+            <AnimatePresence>
+                {isOpen && asset && (
                     <motion.div
                         key="preview-panel"
                         initial={{ y: '100%', opacity: 0 }}
@@ -132,8 +104,7 @@ export const PreviewEngine = memo(function PreviewEngine() {
                         aria-label={`Preview: ${asset.title}`}
                         aria-modal="true"
                     >
-
-                        {/* ── Drag handle ────────────────────────────────────────────── */}
+                        {/* ── Drag handle ──────────────────────────────────────────── */}
                         {!isFullscreen && (
                             <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
                                 <div
@@ -143,11 +114,9 @@ export const PreviewEngine = memo(function PreviewEngine() {
                             </div>
                         )}
 
-                        {/* ── Panel header ───────────────────────────────────────────── */}
+                        {/* ── Panel header ─────────────────────────────────────────── */}
                         <div className="flex items-center justify-between gap-2
               px-3 py-2 border-b border-q-border-subtle flex-shrink-0">
-
-                            {/* Title */}
                             <div className="min-w-0 flex-1">
                                 <p className="text-xs font-bold text-q-text truncate">
                                     {asset.title}
@@ -157,7 +126,6 @@ export const PreviewEngine = memo(function PreviewEngine() {
                                 </p>
                             </div>
 
-                            {/* Close button */}
                             <motion.button
                                 onClick={handleClose}
                                 aria-label="Close preview"
@@ -173,24 +141,16 @@ export const PreviewEngine = memo(function PreviewEngine() {
                             </motion.button>
                         </div>
 
-                        {/* ── Toolbar ────────────────────────────────────────────────── */}
+                        {/* ── Toolbar ──────────────────────────────────────────────── */}
                         <PreviewToolbar onRefresh={handleRefresh} />
 
-                        {/* ── Content area — wrapped in error boundary ─────────────────── */}
+                        {/* ── Content area ─────────────────────────────────────────── */}
                         <PreviewErrorBoundary onReset={handleClose}>
                             <div className="flex-1 flex overflow-hidden min-h-0">
-
-                                {/* Preview mode — renderer only */}
-                                {viewMode === 'preview' && (
-                                    <PreviewRenderer />
-                                )}
-
-                                {/* Code mode — code viewer only */}
+                                {viewMode === 'preview' && <PreviewRenderer />}
                                 {viewMode === 'code' && (
                                     <PreviewCodeViewer className="flex-1" />
                                 )}
-
-                                {/* Split mode — renderer + code side by side */}
                                 {viewMode === 'split' && (
                                     <>
                                         <div className="flex-1 min-w-0 overflow-hidden">
@@ -199,18 +159,17 @@ export const PreviewEngine = memo(function PreviewEngine() {
                                         <PreviewCodeViewer className="w-[45%] flex-shrink-0" />
                                     </>
                                 )}
-
                             </div>
                         </PreviewErrorBoundary>
 
-                        {/* ── Metadata panel ─────────────────────────────────────────── */}
+                        {/* ── Metadata panel ────────────────────────────────────────── */}
                         {(viewMode === 'preview' || viewMode === 'split') && (
                             <PreviewMetadata />
                         )}
 
                     </motion.div>
-                </>
-            )}
-        </AnimatePresence>
+                )}
+            </AnimatePresence>
+        </>
     );
 });

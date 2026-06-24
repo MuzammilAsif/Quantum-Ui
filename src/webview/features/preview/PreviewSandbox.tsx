@@ -9,19 +9,13 @@ interface PreviewSandboxProps {
   onReady: () => void;
 }
 
-// ─── Sandbox document template ────────────────────────────────────────────────
-//
-// Builds a complete standalone HTML document for the iframe.
-// - Loads Tailwind via CDN (cached after first load)
-// - Applies dark/light background matching the theme
-// - Wraps content in error-catching script
-// - Reports errors and ready state to the parent via postMessage
+// ─── Sandbox document builder ─────────────────────────────────────────────────
 
 function buildSandboxDocument(html: string, theme: PreviewTheme, nonce: string): string {
   const bgColor = theme === 'dark' ? '#0a0a12' : '#ffffff';
   const textColor = theme === 'dark' ? '#e8e8ff' : '#1a1a2e';
 
-  return /* html */ `<!DOCTYPE html>
+  return /* html */`<!DOCTYPE html>
 <html lang="en" class="${theme}">
   <head>
     <meta charset="UTF-8" />
@@ -34,21 +28,22 @@ function buildSandboxDocument(html: string, theme: PreviewTheme, nonce: string):
           extend: {
             colors: {
               gray: {
-                50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db',
-                400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151',
-                800: '#1f2937', 900: '#111827',
+                50:'#f9fafb',100:'#f3f4f6',200:'#e5e7eb',300:'#d1d5db',
+                400:'#9ca3af',500:'#6b7280',600:'#4b5563',700:'#374151',
+                800:'#1f2937',900:'#111827',
               },
             },
           },
         },
       };
     </script>
-    <style>
-      * { box-sizing: border-box; }
-      html, body {
+<style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html {
         margin: 0;
         padding: 0;
-        min-height: 100%;
+        width: 100%;
+        height: 100%;
         background: ${bgColor};
         color: ${textColor};
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -56,40 +51,64 @@ function buildSandboxDocument(html: string, theme: PreviewTheme, nonce: string):
         -webkit-font-smoothing: antialiased;
       }
       body {
+        margin: 0;
+        padding: 24px;
+        width: 100%;
+        height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 24px;
-        min-height: 100vh;
+        background: ${bgColor};
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      #preview-root {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       ::-webkit-scrollbar { width: 6px; height: 6px; }
-      ::-webkit-scrollbar-thumb { background: #353570; border-radius: 999px; }
+      ::-webkit-scrollbar-thumb {
+        background: ${theme === 'dark' ? '#353570' : '#d1d5db'};
+        border-radius: 999px;
+      }
       ::-webkit-scrollbar-track { background: transparent; }
     </style>
   </head>
   <body>
     <div id="preview-root">${html}</div>
 
-   <script nonce="${nonce}">
-      // ── Error capture ────────────────────────────────────────────────────
-      window.addEventListener('error', function (event) {
+    <script nonce="${nonce}">
+      // ── Error capture ──────────────────────────────────────────────────────
+      window.addEventListener('error', function(event) {
         window.parent.postMessage({
           type: 'SANDBOX_ERROR',
           payload: { message: event.message || 'Unknown render error' }
         }, '*');
       });
 
-      window.addEventListener('unhandledrejection', function (event) {
+      window.addEventListener('unhandledrejection', function(event) {
         window.parent.postMessage({
           type: 'SANDBOX_ERROR',
           payload: { message: String(event.reason) || 'Unhandled rejection' }
         }, '*');
       });
 
-      // ── Ready signal ─────────────────────────────────────────────────────
-      // Wait for Tailwind CDN to process classes before signaling ready
-      window.addEventListener('load', function () {
-        setTimeout(function () {
+      // ── Listen for resize trigger from parent ──────────────────────────────
+      // When the parent container width changes (device switching, drag resize),
+      // it sends a SANDBOX_RESIZE message. We dispatch a real window resize
+      // event so all Tailwind responsive classes recalculate immediately,
+      // preventing the content snap-back during drag.
+      window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'SANDBOX_RESIZE') {
+          window.dispatchEvent(new Event('resize'));
+        }
+      });
+
+      // ── Ready signal ───────────────────────────────────────────────────────
+      window.addEventListener('load', function() {
+        setTimeout(function() {
           window.parent.postMessage({ type: 'SANDBOX_READY' }, '*');
         }, 80);
       });
@@ -100,19 +119,6 @@ function buildSandboxDocument(html: string, theme: PreviewTheme, nonce: string):
 
 // ─── PreviewSandbox ────────────────────────────────────────────────────────────
 
-/**
- * PreviewSandbox — renders asset HTML inside an isolated iframe.
- *
- * Isolation guarantees:
- * - No shared DOM with the main application
- * - No shared CSS — Tailwind is loaded fresh inside the iframe
- * - No shared JS runtime — errors inside cannot crash the extension
- * - Communication only via postMessage (one-way: child → parent)
- *
- * This component is intentionally "dumb" — it just builds and renders
- * the sandbox document. All state (theme, device width, html content)
- * is passed in as props from PreviewRenderer.
- */
 export const PreviewSandbox = memo(function PreviewSandbox({
   html,
   theme,
@@ -121,28 +127,27 @@ export const PreviewSandbox = memo(function PreviewSandbox({
   onReady,
 }: PreviewSandboxProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const prevWidthRef = useRef<number | null>(null);
 
-  // ── Build the sandbox document whenever html or theme changes ─────────────
+  // ── Build document ────────────────────────────────────────────────────────
   const srcDoc = useMemo(() => {
     if (!html) return null;
-    const nonce = (window as unknown as { __CSP_NONCE__?: string }).__CSP_NONCE__ ?? '';
+    const nonce =
+      (window as unknown as { __CSP_NONCE__?: string }).__CSP_NONCE__ ?? '';
     return buildSandboxDocument(html, theme, nonce);
   }, [html, theme]);
 
-  // ── Listen for messages from the sandboxed iframe ──────────────────────────
+  // ── Message handler ───────────────────────────────────────────────────────
   const handleMessage = useCallback(
     (event: MessageEvent) => {
-      // Only accept messages from our own iframe
-      if (event.source !== iframeRef.current?.contentWindow) {
-        return;
-      }
+      if (event.source !== iframeRef.current?.contentWindow) return;
 
-      const data = event.data as { type?: string; payload?: { message?: string } };
+      const data = event.data as {
+        type?: string;
+        payload?: { message?: string };
+      };
 
-      if (data?.type === 'SANDBOX_READY') {
-        onReady();
-      }
-
+      if (data?.type === 'SANDBOX_READY') onReady();
       if (data?.type === 'SANDBOX_ERROR') {
         onError(data.payload?.message ?? 'Unknown preview error');
       }
@@ -155,16 +160,28 @@ export const PreviewSandbox = memo(function PreviewSandbox({
     return () => window.removeEventListener('message', handleMessage);
   }, [handleMessage]);
 
-  // ── Reset ready state when html changes (new render cycle) ────────────────
+  // ── Send resize signal to sandbox when width changes ──────────────────────
+  // This fixes the content snap-back during drag resize.
+  // We post a SANDBOX_RESIZE message to the iframe on every width change
+  // so the content inside can immediately reflow at the correct size.
+  useEffect(() => {
+    if (width === prevWidthRef.current) return;
+    prevWidthRef.current = width;
+
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+
+    iframe.contentWindow.postMessage({ type: 'SANDBOX_RESIZE' }, '*');
+  }, [width]);
+
+  // ── Surface error when no html ────────────────────────────────────────────
   useEffect(() => {
     if (!srcDoc) {
       onError('No preview content available');
     }
   }, [srcDoc, onError]);
 
-  if (!srcDoc) {
-    return null;
-  }
+  if (!srcDoc) return null;
 
   return (
     <iframe
@@ -172,14 +189,15 @@ export const PreviewSandbox = memo(function PreviewSandbox({
       title="Component preview"
       srcDoc={srcDoc}
       sandbox="allow-scripts"
-      className="w-full h-full border-0 bg-transparent"
+      className="w-full h-full border-0 bg-transparent block"
       style={{
-        width: width !== null ? `${width}px` : '100%',
-        maxWidth: '100%',
-        transition: 'width 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+        // Do NOT constrain width here — the parent PreviewDeviceFrame
+        // handles all width constraints. The iframe always fills 100%
+        // of its container so content reflows correctly during resize.
+        width: '100%',
+        height: '100%',
+        transition: 'none',
       }}
-    // Isolation: scripts allowed for Tailwind CDN + error reporting,
-    // but no same-origin, no top navigation, no popups, no forms.
     />
   );
 });
