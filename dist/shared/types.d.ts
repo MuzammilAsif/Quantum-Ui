@@ -14,7 +14,11 @@ export declare enum MessageType {
     AI_STREAM_END = "AI_STREAM_END",
     AI_ERROR = "AI_ERROR",
     INSERT_COMPONENT = "INSERT_COMPONENT",
-    PREVIEW_COMPONENT = "PREVIEW_COMPONENT"
+    PREVIEW_COMPONENT = "PREVIEW_COMPONENT",
+    SET_API_KEY = "SET_API_KEY",
+    GET_API_KEY_STATUS = "GET_API_KEY_STATUS",
+    API_KEY_STATUS = "API_KEY_STATUS",
+    CLEAR_API_KEY = "CLEAR_API_KEY"
 }
 export interface BaseMessage {
     type: MessageType;
@@ -80,6 +84,7 @@ export interface ErrorMessage extends BaseMessage {
 export interface AIGenerateMessage extends BaseMessage {
     type: MessageType.AI_GENERATE;
     payload: {
+        requestId: string;
         prompt: string;
         framework: Framework;
         options?: AIGenerationOptions;
@@ -113,8 +118,27 @@ export interface InsertComponentMessage extends BaseMessage {
         framework: Framework;
     };
 }
-export type ExtensionMessage = ReadyMessage | GetConfigMessage | SetConfigMessage | OpenFileMessage | CopyToClipboardMessage | ShowNotificationMessage | LogMessage | AIGenerateMessage | InsertComponentMessage;
-export type WebviewMessage = ConfigLoadedMessage | ThemeChangedMessage | ErrorMessage | AIStreamChunkMessage | AIStreamEndMessage | AIErrorMessage;
+export interface SetApiKeyMessage extends BaseMessage {
+    type: MessageType.SET_API_KEY;
+    payload: {
+        apiKey: string;
+    };
+}
+export interface GetApiKeyStatusMessage extends BaseMessage {
+    type: MessageType.GET_API_KEY_STATUS;
+}
+export interface ApiKeyStatusMessage extends BaseMessage {
+    type: MessageType.API_KEY_STATUS;
+    payload: {
+        hasKey: boolean;
+        maskedKey?: string;
+    };
+}
+export interface ClearApiKeyMessage extends BaseMessage {
+    type: MessageType.CLEAR_API_KEY;
+}
+export type ExtensionMessage = ReadyMessage | GetConfigMessage | SetConfigMessage | OpenFileMessage | CopyToClipboardMessage | ShowNotificationMessage | LogMessage | AIGenerateMessage | InsertComponentMessage | SetApiKeyMessage | GetApiKeyStatusMessage | ClearApiKeyMessage;
+export type WebviewMessage = ConfigLoadedMessage | ThemeChangedMessage | ErrorMessage | AIStreamChunkMessage | AIStreamEndMessage | AIErrorMessage | ApiKeyStatusMessage;
 export type Theme = 'dark' | 'light' | 'system';
 export type AccentColor = 'purple' | 'blue' | 'cyan' | 'green';
 export type Framework = 'react' | 'vue' | 'angular' | 'svelte' | 'html' | 'tailwind';

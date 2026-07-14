@@ -8,23 +8,20 @@ import {
   Zap,
   Star,
   Clock,
-  MousePointerClick,
-  LayoutDashboard,
-  TextCursorInput,
 } from 'lucide-react';
 import { ContentContainer } from '../components/ContentContainer';
 import { SectionTitle } from '../components/SectionTitle';
 import { useNavigation } from '../hooks/useNavigation';
 import { useFavoritesStore } from '../store/favoritesStore';
 import { useRecentStore } from '../store/recentStore';
-import {
-  TOTAL_ASSET_COUNT,
-  CATEGORIES,
-  getCountByCategory,
-} from '../features/Components/data';
+import { useLibraryStore } from '../store/libraryStore';
+import { CATEGORIES, TOTAL_ASSET_COUNT } from '../features/Components/data';
+import { LIBRARIES } from '../features/libraries/data';
+import { LibraryGrid } from '../features/libraries/LibraryGrid';
+import { LibraryDetailView } from '../features/libraries/LibraryDetailView';
 import { STAGGER_CONTAINER_VARIANTS, STAGGER_ITEM_VARIANTS } from '../constants';
-import { cn } from '../utils';
 import type { NavPage } from '../types';
+import { cn } from '../utils';
 
 // ─── Quick access card ────────────────────────────────────────────────────────
 
@@ -129,14 +126,6 @@ function CategoryPreviewRow({
   );
 }
 
-// ─── Category icons map for the preview rows ──────────────────────────────────
-
-const PREVIEW_CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  buttons: <MousePointerClick size={12} />,
-  cards: <LayoutDashboard size={12} />,
-  inputs: <TextCursorInput size={12} />,
-};
-
 // ─── Main HomePage ────────────────────────────────────────────────────────────
 
 /**
@@ -154,12 +143,19 @@ export const HomePage = memo(function HomePage() {
   const { navigate } = useNavigation();
   const { getFavoriteCount } = useFavoritesStore();
   const { getRecentCount } = useRecentStore();
+  const { activeLibrary } = useLibraryStore();
 
   const favoriteCount = getFavoriteCount();
   const recentCount = getRecentCount();
 
-  // Top 3 categories to preview on the home page
-  const previewCategories = CATEGORIES.slice(0, 3);
+  // If a library is selected, show its detail view instead of the dashboard
+  if (activeLibrary) {
+    return (
+      <ContentContainer>
+        <LibraryDetailView />
+      </ContentContainer>
+    );
+  }
 
   return (
     <ContentContainer>
@@ -220,6 +216,16 @@ export const HomePage = memo(function HomePage() {
         />
       </motion.div>
 
+{/* ── Library grid ────────────────────────────────────────────────────── */}
+      <div>
+        <SectionTitle
+          title="UI Libraries"
+          subtitle={`${LIBRARIES.length} libraries available`}
+          className="mb-2"
+        />
+        <LibraryGrid />
+      </div>
+
       {/* ── Quick access ────────────────────────────────────────────────────── */}
       <div>
         <SectionTitle title="Quick Access" className="mb-2" />
@@ -262,34 +268,6 @@ export const HomePage = memo(function HomePage() {
             onClick={() => navigate('favorites' as NavPage)}
           />
         </motion.div>
-      </div>
-
-      {/* ── Top categories ──────────────────────────────────────────────────── */}
-      <div>
-        <SectionTitle
-          title="Browse Categories"
-          className="mb-2"
-          action={
-            <button
-              onClick={() => navigate('components' as NavPage)}
-              className="text-2xs text-[var(--q-accent)] hover:underline
-                cursor-pointer transition-colors"
-            >
-              View all
-            </button>
-          }
-        />
-        <div className="flex flex-col gap-1.5">
-          {previewCategories.map((cat) => (
-            <CategoryPreviewRow
-              key={cat.id}
-              icon={PREVIEW_CATEGORY_ICONS[cat.id] ?? <Layers size={12} />}
-              name={cat.name}
-              count={getCountByCategory(cat.id)}
-              onClick={() => navigate('components' as NavPage)}
-            />
-          ))}
-        </div>
       </div>
 
       {/* ── Activity row ────────────────────────────────────────────────────── */}

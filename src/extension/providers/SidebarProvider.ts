@@ -7,6 +7,8 @@ import {
 } from '../../shared/types';
 import { WEBVIEW_ID, CONFIG_KEYS } from '../../shared/constants';
 import { MessageBridge } from '../services/MessageBridge';
+import { SecretsManager } from '../services/SecretsManager';
+import { AIGenerationService } from '../services/AIGenerationService';
 import { generateNonce, getWebviewUri, getConfig } from '../utils';
 
 /**
@@ -17,20 +19,31 @@ import { generateNonce, getWebviewUri, getConfig } from '../utils';
  * - Manage lifecycle (create, show, hide, dispose)
  * - Delegate message passing to MessageBridge
  * - Sync VS Code configuration to the webview
+ * - Handle AI generation requests and API key storage
  */
 export class SidebarProvider implements vscode.WebviewViewProvider {
   public static readonly VIEW_ID = WEBVIEW_ID;
 
   private view?: vscode.WebviewView;
   private readonly messageBridge: MessageBridge;
+  private readonly secretsManager: SecretsManager;
+  private readonly aiService: AIGenerationService;
+  private readonly extensionUri: vscode.Uri;
   private readonly disposables: vscode.Disposable[] = [];
   private isReady = false;
 
   constructor(
-    private readonly extensionUri: vscode.Uri,
+    context: vscode.ExtensionContext,
     private readonly outputChannel: vscode.OutputChannel
   ) {
+    this.extensionUri = context.extensionUri;
     this.messageBridge = new MessageBridge(outputChannel);
+    this.secretsManager = new SecretsManager(context.secrets);
+    this.aiService = new AIGenerationService(
+      this.secretsManager,
+      this.messageBridge,
+      outputChannel
+    );
   }
 
   /**
@@ -43,7 +56,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   ): void {
     this.view = webviewView;
 
-    // Configure webview security and capabilities
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [
@@ -52,30 +64,22 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       ],
     };
 
-    // Attach message bridge
     this.messageBridge.attach(webviewView);
-
-    // Register message handlers
     this.registerMessageHandlers();
-
-    // Render the webview HTML
     webviewView.webview.html = this.buildHtml(webviewView.webview);
 
-    // Listen for visibility changes
     const visibilityListener = webviewView.onDidChangeVisibility(() => {
       if (webviewView.visible && this.isReady) {
         void this.syncConfig();
       }
     });
 
-    // Cleanup on dispose
     const disposeListener = webviewView.onDidDispose(() => {
       this.dispose();
     });
 
     this.disposables.push(visibilityListener, disposeListener);
 
-    // Sync VS Code configuration changes in real-time
     const configWatcher = vscode.workspace.onDidChangeConfiguration((event) => {
       const keys = Object.values(CONFIG_KEYS);
       if (keys.some((key) => event.affectsConfiguration(key))) {
@@ -88,43 +92,35 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.log('Sidebar webview resolved');
   }
 
-  /**
-   * Programmatically reveal the sidebar panel.
-   */
   public reveal(): void {
     this.view?.show(true);
   }
 
-  /**
-   * Send a message to the webview from extension code.
-   */
   public async postMessage(
     message: Parameters<MessageBridge['send']>[0]
   ): Promise<boolean> {
     return this.messageBridge.send(message);
   }
 
-  /**
-   * Get the current message bridge for external handler registration.
-   */
   public getMessageBridge(): MessageBridge {
     return this.messageBridge;
   }
 
   private registerMessageHandlers(): void {
-    // Webview signals it has mounted and is ready
+    // ── Ready ────────────────────────────────────────────────────────────────
     this.messageBridge.on(MessageType.READY, () => {
       this.isReady = true;
       this.log('Webview ready — syncing config');
       void this.syncConfig();
+      void this.sendApiKeyStatus();
     });
 
-    // Webview requests current configuration
+    // ── Get Config ───────────────────────────────────────────────────────────
     this.messageBridge.on(MessageType.GET_CONFIG, () => {
       void this.syncConfig();
     });
 
-    // Webview updates a configuration value
+    // ── Set Config ───────────────────────────────────────────────────────────
     this.messageBridge.on(MessageType.SET_CONFIG, async (msg) => {
       const setMsg = msg as ExtensionMessage & { payload?: Partial<ExtensionConfig> };
       if (setMsg.payload) {
@@ -132,7 +128,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    // Open a file in the editor
+    // ── Open File ────────────────────────────────────────────────────────────
     this.messageBridge.on(MessageType.OPEN_FILE, async (msg) => {
       const openMsg = msg as ExtensionMessage & {
         payload?: { path: string; line?: number; column?: number };
@@ -143,17 +139,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         await vscode.window.showTextDocument(doc, {
           selection: openMsg.payload.line
             ? new vscode.Range(
-              openMsg.payload.line - 1,
-              openMsg.payload.column ?? 0,
-              openMsg.payload.line - 1,
-              openMsg.payload.column ?? 0
-            )
+                openMsg.payload.line - 1,
+                openMsg.payload.column ?? 0,
+                openMsg.payload.line - 1,
+                openMsg.payload.column ?? 0
+              )
             : undefined,
         });
       }
     });
 
-    // Copy text to clipboard
+    // ── Copy to Clipboard ────────────────────────────────────────────────────
     this.messageBridge.on(MessageType.COPY_TO_CLIPBOARD, async (msg) => {
       const copyMsg = msg as ExtensionMessage & { payload?: { text: string } };
       if (copyMsg.payload?.text) {
@@ -162,7 +158,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    // Show a VS Code notification
+    // ── Show Notification ────────────────────────────────────────────────────
     this.messageBridge.on(MessageType.SHOW_NOTIFICATION, (msg) => {
       const notifMsg = msg as ExtensionMessage & {
         payload?: { message: string; type: 'info' | 'warning' | 'error' };
@@ -181,6 +177,67 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             break;
         }
       }
+    });
+
+    // ── AI Generation ────────────────────────────────────────────────────────
+    this.messageBridge.on(MessageType.AI_GENERATE, async (msg) => {
+      const genMsg = msg as ExtensionMessage & {
+        payload?: { requestId: string; prompt: string; framework: string };
+      };
+      if (genMsg.payload) {
+        await this.aiService.generate({
+          requestId: genMsg.payload.requestId,
+          prompt: genMsg.payload.prompt,
+          framework: genMsg.payload.framework,
+        });
+      }
+    });
+
+    // ── Set API Key ──────────────────────────────────────────────────────────
+    this.messageBridge.on(MessageType.SET_API_KEY, async (msg) => {
+      const keyMsg = msg as ExtensionMessage & { payload?: { apiKey: string } };
+      if (keyMsg.payload?.apiKey) {
+        const trimmed = keyMsg.payload.apiKey.trim();
+
+        if (!SecretsManager.isValidKeyFormat(trimmed)) {
+          void vscode.window.showErrorMessage(
+            'Invalid API key format. OpenAI keys start with "sk-".'
+          );
+          await this.sendApiKeyStatus();
+          return;
+        }
+
+        await this.secretsManager.setApiKey(trimmed);
+        void vscode.window.showInformationMessage('API key saved securely.');
+        await this.sendApiKeyStatus();
+      }
+    });
+
+    // ── Get API Key Status ───────────────────────────────────────────────────
+    this.messageBridge.on(MessageType.GET_API_KEY_STATUS, async () => {
+      await this.sendApiKeyStatus();
+    });
+
+    // ── Clear API Key ────────────────────────────────────────────────────────
+    this.messageBridge.on(MessageType.CLEAR_API_KEY, async () => {
+      await this.secretsManager.clearApiKey();
+      void vscode.window.showInformationMessage('API key removed.');
+      await this.sendApiKeyStatus();
+    });
+  }
+
+  /**
+   * Send the current API key status (present/absent + masked preview)
+   * to the webview without ever exposing the full key.
+   */
+  private async sendApiKeyStatus(): Promise<void> {
+    const key = await this.secretsManager.getApiKey();
+    const hasKey = key !== undefined && key.length > 0;
+    const maskedKey = hasKey ? `${key!.slice(0, 7)}...${key!.slice(-4)}` : undefined;
+
+    await this.messageBridge.send({
+      type: MessageType.API_KEY_STATUS,
+      payload: { hasKey, maskedKey },
     });
   }
 
@@ -235,37 +292,27 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
   /**
    * Build the HTML shell for the webview.
-   * All scripts are loaded from the Vite build output.
    */
   private buildHtml(webview: vscode.Webview): string {
     const nonce = generateNonce();
+
     const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
     const webviewDistPath = vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview');
     const distFiles = fs.readdirSync(webviewDistPath.fsPath);
 
     const jsFile = distFiles.find((f) => f.endsWith('.js') && !f.includes('chunk')) ?? 'main.js';
 
-    let cssFile = 'style.css';
-    const assetsPath = vscode.Uri.joinPath(webviewDistPath, 'assets');
-    if (fs.existsSync(assetsPath.fsPath)) {
-      const assetFiles = fs.readdirSync(assetsPath.fsPath);
-      const foundCss = assetFiles.find((f) => f.endsWith('.css'));
-      if (foundCss) {
-        cssFile = `assets/${foundCss}`;
-      }
-    } else {
-      cssFile = distFiles.find((f) => f.endsWith('.css')) ?? 'style.css';
-    }
+    // Vite outputs CSS into dist/webview/assets/ — scan that subfolder
+    const assetsDir = path.join(webviewDistPath.fsPath, 'assets');
+    const assetFiles = fs.existsSync(assetsDir) ? fs.readdirSync(assetsDir) : [];
+    const cssAsset = assetFiles.find((f) => f.endsWith('.css'));
 
     const scriptUri = getWebviewUri(webview, this.extensionUri, jsFile);
-    const styleUri = getWebviewUri(webview, this.extensionUri, ...cssFile.split('/'));
-    // In production, load from built Vite output
-    // In development, this would point to the Vite dev server
-    // const scriptUri = getWebviewUri(webview, this.extensionUri, 'main.js');
-    // const styleUri = getWebviewUri(webview, this.extensionUri, 'style.css');
+    const styleUri = cssAsset
+      ? getWebviewUri(webview, this.extensionUri, 'assets', cssAsset)
+      : getWebviewUri(webview, this.extensionUri, 'style.css');
 
-
-    // Strict Content Security Policy
     const csp = [
       `default-src 'none'`,
       `style-src ${webview.cspSource} 'unsafe-inline'`,
@@ -285,7 +332,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <title>Quantum UI</title>
     <link rel="stylesheet" href="${styleUri.toString()}" />
     <style nonce="${nonce}">
-      /* Critical inline styles to prevent FOUC */
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html, body, #root {
         width: 100%; height: 100%;
@@ -314,8 +360,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         QUANTUM UI
       </div>
     </div>
-<script nonce="${nonce}">
-      // Inject VS Code API reference before React loads
+    <script nonce="${nonce}">
       window.__VSCODE_API__ = acquireVsCodeApi();
       window.__QUANTUM_UI_VERSION__ = '${EXTENSION_VERSION}';
       window.__CSP_NONCE__ = '${nonce}';
@@ -339,5 +384,4 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 }
 
-// Re-export for buildHtml template literal usage
 const EXTENSION_VERSION = '0.1.0';

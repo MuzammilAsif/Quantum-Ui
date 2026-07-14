@@ -17,6 +17,10 @@ export enum MessageType {
   AI_ERROR = 'AI_ERROR',
   INSERT_COMPONENT = 'INSERT_COMPONENT',
   PREVIEW_COMPONENT = 'PREVIEW_COMPONENT',
+  SET_API_KEY = 'SET_API_KEY',
+  GET_API_KEY_STATUS = 'GET_API_KEY_STATUS',
+  API_KEY_STATUS = 'API_KEY_STATUS',
+  CLEAR_API_KEY = 'CLEAR_API_KEY',
 }
 
 export interface BaseMessage {
@@ -76,6 +80,7 @@ export interface ErrorMessage extends BaseMessage {
 export interface AIGenerateMessage extends BaseMessage {
   type: MessageType.AI_GENERATE;
   payload: {
+    requestId: string;
     prompt: string;
     framework: Framework;
     options?: AIGenerationOptions;
@@ -102,6 +107,24 @@ export interface InsertComponentMessage extends BaseMessage {
   payload: { code: string; framework: Framework };
 }
 
+export interface SetApiKeyMessage extends BaseMessage {
+  type: MessageType.SET_API_KEY;
+  payload: { apiKey: string };
+}
+
+export interface GetApiKeyStatusMessage extends BaseMessage {
+  type: MessageType.GET_API_KEY_STATUS;
+}
+
+export interface ApiKeyStatusMessage extends BaseMessage {
+  type: MessageType.API_KEY_STATUS;
+  payload: { hasKey: boolean; maskedKey?: string };
+}
+
+export interface ClearApiKeyMessage extends BaseMessage {
+  type: MessageType.CLEAR_API_KEY;
+}
+
 export type ExtensionMessage =
   | ReadyMessage
   | GetConfigMessage
@@ -111,7 +134,10 @@ export type ExtensionMessage =
   | ShowNotificationMessage
   | LogMessage
   | AIGenerateMessage
-  | InsertComponentMessage;
+  | InsertComponentMessage
+  | SetApiKeyMessage
+  | GetApiKeyStatusMessage
+  | ClearApiKeyMessage;
 
 export type WebviewMessage =
   | ConfigLoadedMessage
@@ -119,7 +145,8 @@ export type WebviewMessage =
   | ErrorMessage
   | AIStreamChunkMessage
   | AIStreamEndMessage
-  | AIErrorMessage;
+  | AIErrorMessage
+  | ApiKeyStatusMessage;
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 

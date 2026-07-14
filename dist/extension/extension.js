@@ -45,26 +45,17 @@ let sidebarProvider;
  * Registers all providers, commands, and event listeners.
  */
 function activate(context) {
-    // Dedicated output channel for debugging
     outputChannel = vscode.window.createOutputChannel('Quantum UI', { log: true });
     outputChannel.appendLine('[Extension] Activating Quantum UI...');
-    // Instantiate the sidebar webview provider
-    sidebarProvider = new SidebarProvider_1.SidebarProvider(context.extensionUri, outputChannel);
-    // Register the sidebar webview with VS Code
+    // Instantiate the sidebar webview provider using the extension URI.
+    sidebarProvider = new SidebarProvider_1.SidebarProvider(context, outputChannel);
     const sidebarRegistration = vscode.window.registerWebviewViewProvider(SidebarProvider_1.SidebarProvider.VIEW_ID, sidebarProvider, {
-        // Keep context alive when panel is hidden — avoids full reload
         webviewOptions: { retainContextWhenHidden: true },
     });
-    // Register all commands
     (0, commands_1.registerCommands)(context, sidebarProvider, outputChannel);
-    // Push long-lived disposables into the extension context
     context.subscriptions.push(sidebarRegistration, outputChannel);
     outputChannel.appendLine('[Extension] Quantum UI activated successfully ✓');
 }
-/**
- * Extension deactivation — VS Code calls this when the extension is unloaded.
- * Clean up resources that aren't tracked in context.subscriptions.
- */
 function deactivate() {
     outputChannel?.appendLine('[Extension] Deactivating Quantum UI...');
     sidebarProvider?.dispose();
