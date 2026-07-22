@@ -172,17 +172,31 @@ Rules:
    * Parse OpenAI's error response into a readable message.
    */
   private parseErrorResponse(statusCode: number, body: string): string {
+    let rawMessage: string | undefined;
+    let errorType: string | undefined;
+
     try {
-      const parsed = JSON.parse(body) as { error?: { message?: string; type?: string } };
-      if (parsed.error?.message) return parsed.error.message;
+      const parsed = JSON.parse(body) as { error?: { message?: string; type?: string; code?: string } };
+      rawMessage = parsed.error?.message;
+      errorType = parsed.error?.type ?? parsed.error?.code;
     } catch {
       // fall through
+    }
+
+    // Quota / billing specific messaging
+    if (
+      errorType === 'insufficient_quota' ||
+      rawMessage?.toLowerCase().includes('quota') ||
+      rawMessage?.toLowerCase().includes('billing')
+    ) {
+      return 'Your OpenAI account needs billing set up or has run out of credits. Add a payment method at platform.openai.com/settings/organization/billing.';
     }
 
     if (statusCode === 401) return 'Invalid API key. Please check your OpenAI API key in Settings.';
     if (statusCode === 429) return 'Rate limit reached. Please wait a moment and try again.';
     if (statusCode === 500) return 'OpenAI service error. Please try again shortly.';
-    return `Request failed with status ${statusCode}`;
+
+    return rawMessage ?? `Request failed with status ${statusCode}`;
   }
 
   /**

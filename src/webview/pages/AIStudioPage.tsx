@@ -2,16 +2,18 @@ import { memo, useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, Send, Code2, Copy, Check, Loader2,
-  AlertTriangle, Settings as SettingsIcon, RotateCcw,
+  AlertTriangle, Settings as SettingsIcon, RotateCcw, Eye,
 } from 'lucide-react';
 import { ContentContainer } from '../components/ContentContainer';
 import { SectionTitle } from '../components/SectionTitle';
 import { useVSCode, useVSCodeMessage } from '../hooks/useVSCode';
 import { useNavigation } from '../hooks/useNavigation';
 import { useToast } from '../hooks/useToast';
+import { useAssetStore } from '../store/assetStore';
 import { cn, generateId } from '../utils';
 import { MessageType } from '../types';
 import type { WebviewMessage } from '../types';
+import type { Asset } from '../features/components/types';
 
 const PROMPT_SUGGESTIONS = [
   'A pricing card with 3 tiers',
@@ -35,6 +37,7 @@ export const AIStudioPage = memo(function AIStudioPage() {
   const { postMessage } = useVSCode();
   const { navigate } = useNavigation();
   const { success } = useToast();
+  const { selectAsset } = useAssetStore();
 
   // ── Check API key status on mount ─────────────────────────────────────────
   useEffect(() => {
@@ -111,6 +114,32 @@ export const AIStudioPage = memo(function AIStudioPage() {
     currentRequestId.current = null;
   }, []);
 
+  // ── Open generated code in the live PreviewEngine ─────────────────────────
+  // Wraps the AI-generated code in a synthetic Asset object so it can flow
+  // through the exact same preview pipeline built in Phase 2 — no special
+  // casing needed in PreviewEngine, PreviewRenderer, or PreviewSandbox.
+  const handlePreview = useCallback(() => {
+    if (!streamedCode.trim()) return;
+
+    const syntheticAsset: Asset = {
+      id: `ai-generated-${generateId()}`,
+      title: prompt.trim().length > 40 ? `${prompt.trim().slice(0, 40)}...` : prompt.trim() || 'AI Generated Component',
+      category: 'cards',
+      framework,
+      tags: ['ai-generated'],
+      description: `Generated from prompt: "${prompt.trim()}"`,
+      preview: null,
+      code: {
+        [framework]: streamedCode,
+      },
+      difficulty: 'Beginner',
+      version: '1.0.0',
+      author: 'AI Studio',
+      dateAdded: new Date().toISOString().split('T')[0],
+    };
+
+    selectAsset(syntheticAsset);
+  }, [streamedCode, prompt, framework, selectAsset]);
   const handleCopy = useCallback(() => {
     if (!streamedCode) return;
     void navigator.clipboard.writeText(streamedCode).then(() => {
@@ -304,6 +333,17 @@ export const AIStudioPage = memo(function AIStudioPage() {
 
               {isComplete && (
                 <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={handlePreview}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded text-2xs
+                      font-semibold border border-[var(--q-accent-border)]
+                      bg-[var(--q-accent-subtle)] text-[var(--q-accent)]
+                      hover:bg-[var(--q-accent)] hover:text-white
+                      cursor-pointer transition-all"
+                  >
+                    <Eye size={10} />
+                    Preview
+                  </button>
                   <button
                     onClick={handleCopy}
                     className={cn(

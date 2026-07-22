@@ -1,6 +1,11 @@
 import { BUTTON_ASSETS } from './buttons';
 import { CARD_ASSETS } from './cards';
 import { INPUT_ASSETS } from './inputs';
+import { PASSWORD_FIELD_ASSETS } from './password-fields';
+import { RADIO_BUTTON_ASSETS } from './radio-buttons';
+import { CHECKBOX_ASSETS } from './checkboxes';
+import { FORM_ASSETS } from './forms';
+import { MODAL_ASSETS } from './modals';
 import { CATEGORIES } from './categories';
 import type { Asset, CategoryId, AssetFilters } from '../types';
 
@@ -9,9 +14,14 @@ import type { Asset, CategoryId, AssetFilters } from '../types';
 // To add a new category: create the data file, import it here, spread it below.
 
 export const ALL_ASSETS: Asset[] = [
-    ...BUTTON_ASSETS,
-    ...CARD_ASSETS,
-    ...INPUT_ASSETS,
+  ...BUTTON_ASSETS,
+  ...CARD_ASSETS,
+  ...INPUT_ASSETS,
+  ...PASSWORD_FIELD_ASSETS,
+  ...RADIO_BUTTON_ASSETS,
+  ...CHECKBOX_ASSETS,
+  ...FORM_ASSETS,
+  ...MODAL_ASSETS,
 ];
 
 // ─── Re-export categories ─────────────────────────────────────────────────────
