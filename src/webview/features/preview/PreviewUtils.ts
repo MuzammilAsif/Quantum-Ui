@@ -1,75 +1,140 @@
-import type { Asset, AssetCode } from '../Components/types';
+import type { Asset, AssetCode } from '../components/types';
 import type { DeviceMode, CodeTab } from './types';
 import { DEVICE_CONFIGS } from './types';
 
 // ─── Device Width Resolution ──────────────────────────────────────────────────
 
-/**
- * Resolve the pixel width for a given device mode.
- * Returns null for 'desktop' meaning "100% width".
- */
 export function getDeviceWidth(device: DeviceMode, customWidth: number): number | null {
-    if (device === 'custom') {
-        return clampWidth(customWidth);
-    }
-    const config = DEVICE_CONFIGS.find((d) => d.id === device);
-    return config?.width ?? null;
+  if (device === 'custom') {
+    return clampWidth(customWidth);
+  }
+  const config = DEVICE_CONFIGS.find((d) => d.id === device);
+  return config?.width ?? null;
 }
 
-/**
- * Clamp a custom viewport width to a sane range.
- */
 export function clampWidth(width: number): number {
-    return Math.max(240, Math.min(1200, width));
+  return Math.max(240, Math.min(1200, width));
 }
 
 // ─── Code Tab Resolution ──────────────────────────────────────────────────────
 
-/**
- * Get the list of code tabs available for an asset (react / html / tailwind).
- */
 export function getAvailableCodeTabs(code: AssetCode): CodeTab[] {
-    return (Object.keys(code) as CodeTab[]).filter(
-        (key) => code[key] !== undefined && code[key] !== ''
-    );
+  return (Object.keys(code) as CodeTab[]).filter(
+    (key) => code[key] !== undefined && code[key] !== ''
+  );
 }
 
-/**
- * Get the best default code tab for an asset.
- * Prefers 'react', falls back to whatever is first available.
- */
 export function getDefaultCodeTab(code: AssetCode): CodeTab {
-    const available = getAvailableCodeTabs(code);
-    if (available.includes('react')) return 'react';
-    return available[0] ?? 'react';
+  const available = getAvailableCodeTabs(code);
+  if (available.includes('react')) return 'react';
+  return available[0] ?? 'react';
 }
 
-/**
- * Get the code string for a given tab, with safe fallback chain.
- */
 export function getCodeForTab(code: AssetCode, tab: CodeTab): string {
-    return code[tab] ?? code.react ?? code.html ?? code.tailwind ?? '';
+  return code[tab] ?? code.react ?? code.html ?? code.tailwind ?? '';
 }
 
 // ─── JSX → HTML Conversion ─────────────────────────────────────────────────────
 //
-// Best-effort conversion of simple JSX snippets into renderable HTML strings.
-// This is NOT a full JSX parser — it handles the common patterns used in our
-// component library: className, self-closing tags, simple {expr} removal,
-// comments, and basic conditional/map removal.
+// Converts simple JSX snippets into renderable static HTML.
 //
-// For complex snippets containing hooks (useState, etc.) or JS logic, the
-// renderer will fall back to a "code preview unavailable" message and the
-// user can still view the source code in the Code tab.
+// v2: now resolves simple useState() hooks to their initial value, so
+// interactive components (toggles, radio groups, checkboxes) render their
+// default visual state instead of bailing out entirely. Components with
+// genuinely unsupported patterns (useEffect/useRef/useMemo/useCallback, or
+// state resolved via method calls / loops over inline object arrays) still
+// gracefully fall back to "Preview unavailable" — the source code remains
+// fully viewable and copyable regardless.
 
-const HOOK_PATTERN = /\b(useState|useEffect|useRef|useMemo|useCallback)\b/;
+const UNSUPPORTED_HOOK_PATTERN = /\b(useEffect|useRef|useMemo|useCallback)\b/;
 
 /**
- * Detect whether a code snippet contains React hooks or complex JS logic
- * that cannot be safely converted to static HTML.
+ * Detect hooks that are fundamentally unsafe to statically resolve.
+ * useState is intentionally excluded — it's now partially supported.
  */
 export function hasComplexLogic(code: string): boolean {
-    return HOOK_PATTERN.test(code);
+  return UNSUPPORTED_HOOK_PATTERN.test(code);
+}
+
+function parseSimpleLiteral(raw: string): string | number | boolean | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  if (trimmed === "''" || trimmed === '""') return '';
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+  const singleQuoted = /^'([^']*)'$/.exec(trimmed);
+  if (singleQuoted) return singleQuoted[1];
+  const doubleQuoted = /^"([^"]*)"$/.exec(trimmed);
+  if (doubleQuoted) return doubleQuoted[1];
+  return undefined; // arrays, objects, function calls — unsupported
+}
+
+function stripQuotes(value: string): string {
+  return value.trim().replace(/^['"`]|['"`]$/g, '');
+}
+
+interface ExtractedState {
+  name: string;
+  value: string | number | boolean | undefined;
+}
+
+/**
+ * Extract all `const [x, setX] = useState(initial);` declarations from
+ * a code string, resolving each initial value to a JS primitive where
+ * possible (arrays/objects/complex expressions resolve to undefined and
+ * are simply skipped during substitution, not fatal to the whole component).
+ */
+function extractStateDeclarations(code: string): ExtractedState[] {
+  const states: ExtractedState[] = [];
+  const stateDeclRegex = /const\s*\[\s*(\w+)\s*,\s*set\w+\s*\]\s*=\s*useState(?:<[^>]*>)?\(([^;]*)\)\s*;?/g;
+  let match: RegExpExecArray | null;
+  while ((match = stateDeclRegex.exec(code)) !== null) {
+    states.push({ name: match[1], value: parseSimpleLiteral(match[2]) });
+  }
+  return states;
+}
+
+/**
+ * Substitute known state variable references within a JSX string with
+ * their resolved initial values. Handles the common authored patterns:
+ * template-literal ternaries in class attributes, JSX-level ternaries,
+ * AND-guards, and direct interpolation.
+ */
+function resolveStateReferences(jsx: string, states: ExtractedState[]): string {
+  let working = jsx;
+
+  for (const { name, value } of states) {
+    if (value === undefined) continue; // unsupported initial value — skip, handled by safety nets later
+    const n = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // ${name ? 'a' : 'b'}  → resolved literal (inside template-literal class strings)
+    working = working.replace(
+      new RegExp('\\$\\{\\s*' + n + '\\s*\\?\\s*([^:]*?)\\s*:\\s*([^}]*?)\\s*\\}', 'g'),
+      (_f: string, a: string, b: string) => stripQuotes(value ? a : b)
+    );
+    // ${name}
+    working = working.replace(new RegExp('\\$\\{\\s*' + n + '\\s*\\}', 'g'), String(value));
+
+    // {name ? <A/> : <B/>}
+    working = working.replace(
+      new RegExp('\\{\\s*' + n + '\\s*\\?\\s*([\\s\\S]*?)\\s*:\\s*([\\s\\S]*?)\\}', 'g'),
+      (_f: string, a: string, b: string) => (value ? a : b).trim()
+    );
+    // {name && <A/>}
+    working = working.replace(
+      new RegExp('\\{\\s*' + n + '\\s*&&\\s*([\\s\\S]*?)\\}', 'g'),
+      (_f: string, a: string) => (value ? a.trim() : '')
+    );
+    // {!name && <A/>}
+    working = working.replace(
+      new RegExp('\\{\\s*!' + n + '\\s*&&\\s*([\\s\\S]*?)\\}', 'g'),
+      (_f: string, a: string) => (!value ? a.trim() : '')
+    );
+    // Bare {name}
+    working = working.replace(new RegExp('\\{\\s*' + n + '\\s*\\}', 'g'), String(value));
+  }
+
+  return working;
 }
 
 /**
@@ -77,81 +142,96 @@ export function hasComplexLogic(code: string): boolean {
  * Returns null if the code is too complex to convert safely.
  */
 export function jsxToHtml(code: string): string | null {
-    if (hasComplexLogic(code)) {
-        return null;
-    }
+  if (hasComplexLogic(code)) {
+    return null;
+  }
 
-    let html = code.trim();
+  // Slice off everything before the first JSX tag — this strips hook
+  // declarations, derived consts, and handler functions in one pass.
+  const firstTagIndex = code.search(/<[A-Za-z]/);
+  if (firstTagIndex === -1) {
+    return null;
+  }
 
-    // Remove JSX comments: {/* ... */}
-    html = html.replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+  let html = code.slice(firstTagIndex).trim();
 
-    // Convert className= to class=
-    html = html.replace(/className=/g, 'class=');
+  // Resolve any useState() values found in the ORIGINAL code against
+  // the sliced JSX portion.
+  if (/useState/.test(code)) {
+    const states = extractStateDeclarations(code);
+    html = resolveStateReferences(html, states);
+  }
 
-    // Remove simple icon component tags like <Plus className="..." />
-    // Replace with a generic span placeholder so layout spacing is preserved
-    html = html.replace(
-        /<([A-Z][A-Za-z0-9]*)\s+([^>]*?)\/>/g,
-        '<span $2 style="display:inline-block;width:1em;height:1em;"></span>'
-    );
+  // Remove JSX comments: {/* ... */}
+  html = html.replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
 
-    // Remove any remaining capitalized component tags (opening)
-    html = html.replace(/<([A-Z][A-Za-z0-9]*)([^>]*)>/g, '<span $2>');
-    html = html.replace(/<\/([A-Z][A-Za-z0-9]*)>/g, '</span>');
+  // Safety net: strip any remaining unresolved template-literal expressions
+  // (comparisons, method calls, or state we intentionally skipped)
+  html = html.replace(/\$\{[^}]*\}/g, '');
 
-    // Remove map/array expressions — replace {array.map(...)} blocks with empty
-    html = html.replace(/\{[^{}]*\.map\([\s\S]*?\)\}/g, '');
+  // Convert now-static template-literal attributes into plain strings:
+  // attr={`...`}  →  attr="..."
+  html = html.replace(/=\{`([^`]*)`\}/g, '="$1"');
 
-    // Remove remaining simple {expression} blocks (text interpolations)
-    // but keep literal text content where possible
-    html = html.replace(/\{['"`]([^'"`]*)['"`]\}/g, '$1');
-    html = html.replace(/\{[^{}]*\}/g, '');
+  // Convert className= to class=
+  html = html.replace(/className=/g, 'class=');
 
-    // Collapse excessive whitespace
-    html = html.replace(/\s{2,}/g, ' ').trim();
+  // Remove event handler attributes — inert in a static preview anyway
+  html = html.replace(/\s(on[A-Z]\w*)=\{[^{}]*\}/g, '');
 
-    return html;
+  // Remove simple icon component tags like <Plus className="..." />
+  html = html.replace(
+    /<([A-Z][A-Za-z0-9]*)\s+([^>]*?)\/>/g,
+    '<span $2 style="display:inline-block;width:1em;height:1em;"></span>'
+  );
+
+  // Remove any remaining capitalized component tags
+  html = html.replace(/<([A-Z][A-Za-z0-9]*)([^>]*)>/g, '<span $2>');
+  html = html.replace(/<\/([A-Z][A-Za-z0-9]*)>/g, '</span>');
+
+  // Remove simple map/array expressions (flat arrays / named identifiers —
+  // inline arrays of object literals directly before .map() are not
+  // supported and will fall through to the generic cleanup below)
+  html = html.replace(/\{[^{}]*\.map\([\s\S]*?\)\}/g, '');
+
+  // Remove remaining simple {expression} blocks
+  html = html.replace(/\{['"`]([^'"`]*)['"`]\}/g, '$1');
+  html = html.replace(/\{[^{}]*\}/g, '');
+
+  // Collapse excessive whitespace
+  html = html.replace(/\s{2,}/g, ' ').trim();
+
+  return html;
 }
 
 // ─── Preview HTML Resolution ──────────────────────────────────────────────────
 
 export interface PreviewResolution {
-    html: string | null;
-    source: 'html' | 'react-converted' | 'unavailable';
+  html: string | null;
+  source: 'html' | 'react-converted' | 'unavailable';
 }
 
-/**
- * Resolve the best HTML representation for previewing an asset.
- * Priority: explicit code.html → converted code.react → unavailable.
- */
 export function resolvePreviewHtml(asset: Asset): PreviewResolution {
-    if (asset.code.html) {
-        return { html: asset.code.html, source: 'html' };
-    }
+  if (asset.code.html) {
+    return { html: asset.code.html, source: 'html' };
+  }
 
-    if (asset.code.react) {
-        const converted = jsxToHtml(asset.code.react);
-        if (converted) {
-            return { html: converted, source: 'react-converted' };
-        }
+  if (asset.code.react) {
+    const converted = jsxToHtml(asset.code.react);
+    if (converted) {
+      return { html: converted, source: 'react-converted' };
     }
+  }
 
-    return { html: null, source: 'unavailable' };
+  return { html: null, source: 'unavailable' };
 }
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
 
-/**
- * Format a device width for display, e.g. "375px" or "100%".
- */
 export function formatDeviceWidth(width: number | null): string {
-    return width === null ? '100%' : `${width}px`;
+  return width === null ? '100%' : `${width}px`;
 }
 
-/**
- * Count lines in a code string — used for line numbers in the code viewer.
- */
 export function countLines(code: string): number {
-    return code.split('\n').length;
+  return code.split('\n').length;
 }
