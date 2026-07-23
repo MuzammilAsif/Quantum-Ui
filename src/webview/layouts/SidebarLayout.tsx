@@ -75,8 +75,11 @@ function NavRail() {
       role="tablist"
       aria-label="Navigation"
       className={cn(
-        'flex-shrink-0 flex items-center gap-0.5 px-2 py-1.5',
-        'border-b border-q-border-subtle bg-q-base/80'
+        'flex-shrink-0 flex items-center justify-between gap-1 px-3 py-2',
+        'border-b border-q-border-subtle bg-q-base/80',
+        // Safety net: if more nav items are ever added, scroll horizontally
+        // instead of overflowing off the sidebar edge.
+        'overflow-x-auto no-scrollbar'
       )}
     >
       {NAV_ITEMS_CONFIG.map((item) => (
@@ -84,7 +87,7 @@ function NavRail() {
           key={item.id}
           item={item}
           isActive={isActive(item.id)}
-          isCompact={false}
+          isCompact
           onClick={() => navigate(item.id)}
         />
       ))}

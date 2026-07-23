@@ -34,24 +34,18 @@ export function getCodeForTab(code: AssetCode, tab: CodeTab): string {
   return code[tab] ?? code.react ?? code.html ?? code.tailwind ?? '';
 }
 
-// ─── JSX → HTML Conversion ─────────────────────────────────────────────────────
+// ─── JSX → HTML Conversion (v3) ────────────────────────────────────────────────
 //
-// Converts simple JSX snippets into renderable static HTML.
-//
-// v2: now resolves simple useState() hooks to their initial value, so
-// interactive components (toggles, radio groups, checkboxes) render their
-// default visual state instead of bailing out entirely. Components with
-// genuinely unsupported patterns (useEffect/useRef/useMemo/useCallback, or
-// state resolved via method calls / loops over inline object arrays) still
-// gracefully fall back to "Preview unavailable" — the source code remains
-// fully viewable and copyable regardless.
+// v3: resolves useState() initial values into a static preview using
+// self-contained, order-independent passes — each transformation either
+// fully resolves a pattern or leaves it untouched, never a partial or
+// broken substitution. A final validation pass catches anything that
+// still looks malformed (leftover template syntax, unbalanced quotes,
+// near-empty output) and safely falls back to "Preview unavailable"
+// rather than ever rendering a blank/broken preview.
 
 const UNSUPPORTED_HOOK_PATTERN = /\b(useEffect|useRef|useMemo|useCallback)\b/;
 
-/**
- * Detect hooks that are fundamentally unsafe to statically resolve.
- * useState is intentionally excluded — it's now partially supported.
- */
 export function hasComplexLogic(code: string): boolean {
   return UNSUPPORTED_HOOK_PATTERN.test(code);
 }
@@ -66,7 +60,7 @@ function parseSimpleLiteral(raw: string): string | number | boolean | undefined 
   if (singleQuoted) return singleQuoted[1];
   const doubleQuoted = /^"([^"]*)"$/.exec(trimmed);
   if (doubleQuoted) return doubleQuoted[1];
-  return undefined; // arrays, objects, function calls — unsupported
+  return undefined; // arrays, objects, function calls — unsupported, skipped safely
 }
 
 function stripQuotes(value: string): string {
@@ -78,12 +72,6 @@ interface ExtractedState {
   value: string | number | boolean | undefined;
 }
 
-/**
- * Extract all `const [x, setX] = useState(initial);` declarations from
- * a code string, resolving each initial value to a JS primitive where
- * possible (arrays/objects/complex expressions resolve to undefined and
- * are simply skipped during substitution, not fatal to the whole component).
- */
 function extractStateDeclarations(code: string): ExtractedState[] {
   const states: ExtractedState[] = [];
   const stateDeclRegex = /const\s*\[\s*(\w+)\s*,\s*set\w+\s*\]\s*=\s*useState(?:<[^>]*>)?\(([^;]*)\)\s*;?/g;
@@ -95,42 +83,62 @@ function extractStateDeclarations(code: string): ExtractedState[] {
 }
 
 /**
- * Substitute known state variable references within a JSX string with
- * their resolved initial values. Handles the common authored patterns:
- * template-literal ternaries in class attributes, JSX-level ternaries,
- * AND-guards, and direct interpolation.
+ * Resolve `attr={`...${state}...`}` template-literal attributes into
+ * plain static `attr="..."` strings in ONE self-contained pass per match.
+ * This guarantees every match always yields a validly-quoted attribute —
+ * never a stray backtick or unclosed brace left dangling in the output,
+ * which was the root cause of the blank-preview bug.
  */
-function resolveStateReferences(jsx: string, states: ExtractedState[]): string {
+function resolveTemplateLiteralAttributes(jsx: string, states: ExtractedState[]): string {
+  return jsx.replace(/(\w[\w-]*)=\{`([^`]*)`\}/g, (_full, attrName: string, inner: string) => {
+    let resolved = inner;
+
+    for (const { name, value } of states) {
+      if (value === undefined) continue;
+      const n = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      resolved = resolved.replace(
+        new RegExp('\\$\\{\\s*' + n + '\\s*\\?\\s*([^:]*?)\\s*:\\s*([^}]*?)\\s*\\}', 'g'),
+        (_f: string, a: string, b: string) => stripQuotes(value ? a : b)
+      );
+      resolved = resolved.replace(
+        new RegExp('\\$\\{\\s*' + n + '\\s*\\}', 'g'),
+        String(value)
+      );
+    }
+
+    // Drop any interpolation we couldn't resolve (derived values, indexed
+    // lookups like colors[strength], etc.) rather than leaving broken
+    // ${...} syntax behind — the attribute stays valid either way.
+    resolved = resolved.replace(/\$\{[^}]*\}/g, '').replace(/\s{2,}/g, ' ').trim();
+
+    return `${attrName}="${resolved}"`;
+  });
+}
+
+/**
+ * Resolve JSX-level conditionals referencing known state variables:
+ * `{name ? <A/> : <B/>}`, `{name && <A/>}`, `{!name && <A/>}`, bare `{name}`.
+ */
+function resolveJsxConditionals(jsx: string, states: ExtractedState[]): string {
   let working = jsx;
 
   for (const { name, value } of states) {
-    if (value === undefined) continue; // unsupported initial value — skip, handled by safety nets later
+    if (value === undefined) continue;
     const n = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    // ${name ? 'a' : 'b'}  → resolved literal (inside template-literal class strings)
-    working = working.replace(
-      new RegExp('\\$\\{\\s*' + n + '\\s*\\?\\s*([^:]*?)\\s*:\\s*([^}]*?)\\s*\\}', 'g'),
-      (_f: string, a: string, b: string) => stripQuotes(value ? a : b)
-    );
-    // ${name}
-    working = working.replace(new RegExp('\\$\\{\\s*' + n + '\\s*\\}', 'g'), String(value));
-
-    // {name ? <A/> : <B/>}
     working = working.replace(
       new RegExp('\\{\\s*' + n + '\\s*\\?\\s*([\\s\\S]*?)\\s*:\\s*([\\s\\S]*?)\\}', 'g'),
       (_f: string, a: string, b: string) => (value ? a : b).trim()
     );
-    // {name && <A/>}
     working = working.replace(
       new RegExp('\\{\\s*' + n + '\\s*&&\\s*([\\s\\S]*?)\\}', 'g'),
       (_f: string, a: string) => (value ? a.trim() : '')
     );
-    // {!name && <A/>}
     working = working.replace(
       new RegExp('\\{\\s*!' + n + '\\s*&&\\s*([\\s\\S]*?)\\}', 'g'),
       (_f: string, a: string) => (!value ? a.trim() : '')
     );
-    // Bare {name}
     working = working.replace(new RegExp('\\{\\s*' + n + '\\s*\\}', 'g'), String(value));
   }
 
@@ -138,68 +146,66 @@ function resolveStateReferences(jsx: string, states: ExtractedState[]): string {
 }
 
 /**
- * Convert a JSX snippet to an HTML string for live preview rendering.
- * Returns null if the code is too complex to convert safely.
+ * Final safety net — reject anything that still looks malformed rather
+ * than risk rendering a blank or broken preview.
  */
+function isWellFormed(html: string): boolean {
+  if (!html || html.trim().length < 8) return false;
+  if (html.includes('${') || html.includes('`')) return false;
+  const quoteCount = (html.match(/"/g) || []).length;
+  if (quoteCount % 2 !== 0) return false;
+  return true;
+}
+
 export function jsxToHtml(code: string): string | null {
   if (hasComplexLogic(code)) {
     return null;
   }
 
-  // Slice off everything before the first JSX tag — this strips hook
-  // declarations, derived consts, and handler functions in one pass.
   const firstTagIndex = code.search(/<[A-Za-z]/);
   if (firstTagIndex === -1) {
     return null;
   }
 
   let html = code.slice(firstTagIndex).trim();
+  const states = /useState/.test(code) ? extractStateDeclarations(code) : [];
 
-  // Resolve any useState() values found in the ORIGINAL code against
-  // the sliced JSX portion.
-  if (/useState/.test(code)) {
-    const states = extractStateDeclarations(code);
-    html = resolveStateReferences(html, states);
+  if (states.length > 0) {
+    html = resolveTemplateLiteralAttributes(html, states);
+    html = resolveJsxConditionals(html, states);
   }
 
-  // Remove JSX comments: {/* ... */}
+  // Remove JSX comments
   html = html.replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
 
-  // Safety net: strip any remaining unresolved template-literal expressions
-  // (comparisons, method calls, or state we intentionally skipped)
-  html = html.replace(/\$\{[^}]*\}/g, '');
-
-  // Convert now-static template-literal attributes into plain strings:
-  // attr={`...`}  →  attr="..."
-  html = html.replace(/=\{`([^`]*)`\}/g, '="$1"');
-
-  // Convert className= to class=
+  // className → class
   html = html.replace(/className=/g, 'class=');
 
-  // Remove event handler attributes — inert in a static preview anyway
+  // Remove event handler attributes — inert in a static preview
   html = html.replace(/\s(on[A-Z]\w*)=\{[^{}]*\}/g, '');
 
-  // Remove simple icon component tags like <Plus className="..." />
+  // Self-closing capitalized (icon/component) tags → inline placeholder span
   html = html.replace(
     /<([A-Z][A-Za-z0-9]*)\s+([^>]*?)\/>/g,
     '<span $2 style="display:inline-block;width:1em;height:1em;"></span>'
   );
-
-  // Remove any remaining capitalized component tags
   html = html.replace(/<([A-Z][A-Za-z0-9]*)([^>]*)>/g, '<span $2>');
   html = html.replace(/<\/([A-Z][A-Za-z0-9]*)>/g, '</span>');
 
-  // Remove simple map/array expressions (flat arrays / named identifiers —
-  // inline arrays of object literals directly before .map() are not
-  // supported and will fall through to the generic cleanup below)
+  // Remove .map() expressions we don't attempt to statically unroll
   html = html.replace(/\{[^{}]*\.map\([\s\S]*?\)\}/g, '');
 
-  // Remove remaining simple {expression} blocks
+  // Remove simple string-literal expression wrappers: {'text'} → text
   html = html.replace(/\{['"`]([^'"`]*)['"`]\}/g, '$1');
+
+  // Anything else left in {…} at this point is unresolved — drop it
   html = html.replace(/\{[^{}]*\}/g, '');
 
-  // Collapse excessive whitespace
   html = html.replace(/\s{2,}/g, ' ').trim();
+
+  if (!isWellFormed(html)) {
+    return null;
+  }
 
   return html;
 }

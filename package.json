@@ -26,14 +26,14 @@
   "main": "./dist/extension/extension.js",
   "contributes": {
     "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "quantum-ui-sidebar",
-          "title": "Quantum UI",
-          "icon": "src/assets/icon.svg"
-        }
-      ]
-    },
+  "activitybar": [
+    {
+      "id": "quantum-ui-sidebar",
+      "title": "Quantum UI",
+      "icon": "src/assets/icon.png"
+    }
+  ]
+},
     "views": {
       "quantum-ui-sidebar": [
         {

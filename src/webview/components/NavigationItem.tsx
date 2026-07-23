@@ -90,8 +90,8 @@ export const NavigationItem = memo(function NavigationItem({
         </span>
       )}
 
-      {/* Badges */}
-      {!isCompact && (
+     {/* Badges — full pill in expanded mode, small dot in compact mode */}
+      {!isCompact ? (
         <span className="flex-shrink-0 flex items-center gap-1">
           {item.isNew && (
             <span className="q-pill-new">New</span>
@@ -100,6 +100,15 @@ export const NavigationItem = memo(function NavigationItem({
             <span className="q-badge">{item.badge}</span>
           )}
         </span>
+      ) : (
+        item.isNew && (
+          <span
+            className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full
+              bg-[var(--q-accent)]"
+            style={{ boxShadow: '0 0 4px var(--q-accent-glow)' }}
+            aria-hidden="true"
+          />
+        )
       )}
     </motion.button>
   );
