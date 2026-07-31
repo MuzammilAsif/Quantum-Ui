@@ -73,11 +73,10 @@ export const SettingsPage = memo(function SettingsPage() {
       toastError('Please enter an API key');
       return;
     }
-    if (!trimmed.startsWith('sk-')) {
-      toastError('OpenAI keys start with "sk-"');
+  if (trimmed.length < 20) {
+      toastError('That doesn\'t look like a valid API key');
       return;
     }
-
     setIsSaving(true);
     postMessage({
       type: MessageType.SET_API_KEY,
@@ -169,7 +168,7 @@ export const SettingsPage = memo(function SettingsPage() {
 
             <div className="flex items-center gap-1.5 mb-2.5">
               <Key size={11} className="text-q-text-faint" />
-              <p className="text-xs font-medium text-q-text">OpenAI API Key</p>
+              <p className="text-xs font-medium text-q-text">Gemini API Key</p>
               {hasKey && (
                 <span className="flex items-center gap-1 ml-auto text-2xs
                   text-emerald-400 bg-emerald-500/10 border border-emerald-500/20
@@ -210,7 +209,7 @@ export const SettingsPage = memo(function SettingsPage() {
                     type={showInput ? 'text' : 'password'}
                     value={apiKeyInput}
                     onChange={(e) => setApiKeyInput(e.target.value)}
-                    placeholder="sk-..."
+                    placeholder="Paste your Gemini API key"
                     className="w-full px-3 py-2 pr-8 rounded-md
                       border border-q-border bg-q-surface
                       text-xs text-q-text placeholder:text-q-text-faint
@@ -240,7 +239,7 @@ export const SettingsPage = memo(function SettingsPage() {
             )}
 
             <a
-              href="https://platform.openai.com/api-keys"
+              href="https://aistudio.google.com/apikey"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 mt-2.5 text-2xs
@@ -248,7 +247,7 @@ export const SettingsPage = memo(function SettingsPage() {
                 transition-colors"
             >
               <ExternalLink size={9} />
-              Get your API key from OpenAI
+              Get your free API key from Google AI Studio
             </a>
           </div>
         </div>

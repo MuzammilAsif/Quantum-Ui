@@ -3,8 +3,10 @@ import type { SecretsManager } from './SecretsManager';
 import type { MessageBridge } from './MessageBridge';
 import { MessageType } from '../../shared/types';
 
-const OPENAI_API_HOST = 'api.openai.com';
-const OPENAI_MODEL = 'gpt-4o-mini';
+const GEMINI_API_HOST = 'generativelanguage.googleapis.com';
+const GEMINI_API_PATH = '/v1beta/interactions';
+const GEMINI_API_REVISION = '2026-05-20';
+const GEMINI_MODEL = 'gemini-3.6-flash';
 
 interface GenerateOptions {
   requestId: string;
@@ -12,16 +14,6 @@ interface GenerateOptions {
   framework: string;
 }
 
-/**
- * AIGenerationService — calls the OpenAI API to generate UI component code.
- *
- * Runs entirely in the extension host (Node.js), never in the webview.
- * This is important: the API key never touches the webview's JS context,
- * which is the correct security boundary for a "bring your own key" model.
- *
- * Uses OpenAI's streaming Chat Completions API and forwards each token
- * chunk to the webview in real time via the MessageBridge.
- */
 export class AIGenerationService {
   constructor(
     private readonly secretsManager: SecretsManager,
@@ -29,11 +21,7 @@ export class AIGenerationService {
     private readonly outputChannel: { appendLine: (msg: string) => void }
   ) {}
 
-  /**
-   * Build the system prompt that instructs the model how to generate
-   * clean, framework-appropriate component code.
-   */
-  private buildSystemPrompt(framework: string): string {
+  private buildPrompt(userPrompt: string, framework: string): string {
     const frameworkInstructions: Record<string, string> = {
       react: 'Generate a single React functional component using TypeScript and Tailwind CSS utility classes. Use JSX syntax with className attributes. Do not include imports or exports — just the JSX markup and any needed React hooks inline.',
       html: 'Generate clean semantic HTML with Tailwind CSS utility classes. Use class attributes.',
@@ -52,35 +40,36 @@ Rules:
 - Use Tailwind CSS classes exclusively for styling
 - Make the component visually polished and production-ready
 - Do not include comments in the code
-- Keep it concise — a single component, not a full page`;
+- Keep it concise — a single component, not a full page
+
+User request: ${userPrompt}`;
   }
 
-  /**
-   * Generate a component and stream the result back to the webview.
-   */
   async generate(options: GenerateOptions): Promise<void> {
     const { requestId, prompt, framework } = options;
+    this.outputChannel.appendLine(`[AI] generate() called — requestId=${requestId}, framework=${framework}`);
 
     const apiKey = await this.secretsManager.getApiKey();
 
     if (!apiKey) {
-      await this.sendError(requestId, 'No API key configured. Add your OpenAI API key in Settings.');
+      this.outputChannel.appendLine('[AI] No API key found in SecretStorage');
+      await this.sendError(requestId, 'No API key configured. Add your Gemini API key in Settings.');
       return;
     }
 
+    this.outputChannel.appendLine(`[AI] API key found (length: ${apiKey.length}). Sending request...`);
+
     try {
-      await this.streamCompletion(apiKey, prompt, framework, requestId);
+      await this.streamInteraction(apiKey, prompt, framework, requestId);
+      this.outputChannel.appendLine(`[AI] streamInteraction resolved for ${requestId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error occurred';
-      this.outputChannel.appendLine(`[AIGenerationService] Error: ${message}`);
+      this.outputChannel.appendLine(`[AI] ERROR: ${message}`);
       await this.sendError(requestId, this.humanizeError(message));
     }
   }
 
-  /**
-   * Make the streaming HTTPS request to OpenAI and forward chunks.
-   */
-  private streamCompletion(
+  private streamInteraction(
     apiKey: string,
     prompt: string,
     framework: string,
@@ -88,33 +77,36 @@ Rules:
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const body = JSON.stringify({
-        model: OPENAI_MODEL,
-        messages: [
-          { role: 'system', content: this.buildSystemPrompt(framework) },
-          { role: 'user', content: prompt },
-        ],
+        model: GEMINI_MODEL,
+        input: this.buildPrompt(prompt, framework),
         stream: true,
-        temperature: 0.7,
-        max_tokens: 1500,
       });
+
+      this.outputChannel.appendLine(
+        `[AI] POST https://${GEMINI_API_HOST}${GEMINI_API_PATH} (model=${GEMINI_MODEL}, bodyBytes=${Buffer.byteLength(body)})`
+      );
 
       const req = https.request(
         {
-          hostname: OPENAI_API_HOST,
-          path: '/v1/chat/completions',
+          hostname: GEMINI_API_HOST,
+          path: GEMINI_API_PATH,
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
+            'x-goog-api-key': apiKey,
+            'Api-Revision': GEMINI_API_REVISION,
             'Content-Length': Buffer.byteLength(body),
           },
+          timeout: 25000,
         },
         (res) => {
-          // Handle non-200 responses (auth errors, rate limits, etc.)
+          this.outputChannel.appendLine(`[AI] Response headers received — status ${res.statusCode}`);
+
           if (res.statusCode !== 200) {
             let errorBody = '';
             res.on('data', (chunk) => { errorBody += chunk; });
             res.on('end', () => {
+              this.outputChannel.appendLine(`[AI] Non-200 body: ${errorBody.slice(0, 500)}`);
               reject(new Error(this.parseErrorResponse(res.statusCode ?? 0, errorBody)));
             });
             return;
@@ -122,89 +114,92 @@ Rules:
 
           let fullResult = '';
           let buffer = '';
+          let rawChunkCount = 0;
 
           res.on('data', (chunk: Buffer) => {
+            rawChunkCount++;
             buffer += chunk.toString('utf-8');
 
-            // OpenAI streams as Server-Sent Events: lines starting with "data: "
             const lines = buffer.split('\n');
-            buffer = lines.pop() ?? ''; // Keep incomplete line in buffer
+            buffer = lines.pop() ?? '';
 
             for (const line of lines) {
               const trimmed = line.trim();
               if (!trimmed.startsWith('data: ')) continue;
 
               const data = trimmed.slice(6);
-              if (data === '[DONE]') continue;
+              if (!data) continue;
 
               try {
                 const parsed = JSON.parse(data) as {
-                  choices?: Array<{ delta?: { content?: string } }>;
+                  event_type?: string;
+                  delta?: { type?: string; text?: string };
                 };
-                const token = parsed.choices?.[0]?.delta?.content;
 
-                if (token) {
-                  fullResult += token;
-                  void this.sendChunk(requestId, token);
+                if (parsed.event_type === 'step.delta' && parsed.delta?.type === 'text') {
+                  const token = parsed.delta.text ?? '';
+                  if (token) {
+                    fullResult += token;
+                    void this.sendChunk(requestId, token);
+                  }
                 }
               } catch {
-                // Skip malformed SSE lines silently
+                this.outputChannel.appendLine(`[AI] Unparseable SSE line: ${data.slice(0, 150)}`);
               }
             }
           });
 
           res.on('end', () => {
+            this.outputChannel.appendLine(
+              `[AI] Stream ended — ${rawChunkCount} raw TCP chunks, ${fullResult.length} chars generated`
+            );
             void this.sendComplete(requestId, fullResult);
             resolve();
           });
 
-          res.on('error', (err) => reject(err));
+          res.on('error', (err) => {
+            this.outputChannel.appendLine(`[AI] Response stream error: ${String(err)}`);
+            reject(err);
+          });
         }
       );
 
-      req.on('error', (err) => reject(err));
+      req.on('timeout', () => {
+        this.outputChannel.appendLine('[AI] Request timed out after 25s — destroying socket');
+        req.destroy(new Error('Request timed out'));
+      });
+
+      req.on('error', (err) => {
+        this.outputChannel.appendLine(`[AI] Request-level error: ${String(err)}`);
+        reject(err);
+      });
+
       req.write(body);
       req.end();
     });
   }
 
-  /**
-   * Parse OpenAI's error response into a readable message.
-   */
   private parseErrorResponse(statusCode: number, body: string): string {
-    let rawMessage: string | undefined;
-    let errorType: string | undefined;
-
     try {
-      const parsed = JSON.parse(body) as { error?: { message?: string; type?: string; code?: string } };
-      rawMessage = parsed.error?.message;
-      errorType = parsed.error?.type ?? parsed.error?.code;
+      const parsed = JSON.parse(body) as { error?: { message?: string; status?: string } };
+      if (parsed.error?.message) return parsed.error.message;
     } catch {
       // fall through
     }
 
-    // Quota / billing specific messaging
-    if (
-      errorType === 'insufficient_quota' ||
-      rawMessage?.toLowerCase().includes('quota') ||
-      rawMessage?.toLowerCase().includes('billing')
-    ) {
-      return 'Your OpenAI account needs billing set up or has run out of credits. Add a payment method at platform.openai.com/settings/organization/billing.';
-    }
-
-    if (statusCode === 401) return 'Invalid API key. Please check your OpenAI API key in Settings.';
+    if (statusCode === 400) return 'Invalid request. The prompt may have been rejected by Gemini safety filters.';
+    if (statusCode === 401 || statusCode === 403) return 'Invalid API key. Please check your Gemini API key in Settings.';
     if (statusCode === 429) return 'Rate limit reached. Please wait a moment and try again.';
-    if (statusCode === 500) return 'OpenAI service error. Please try again shortly.';
-
-    return rawMessage ?? `Request failed with status ${statusCode}`;
+    if (statusCode === 500 || statusCode === 503) return 'Gemini service error. Please try again shortly.';
+    return `Request failed with status ${statusCode}`;
   }
 
-  /**
-   * Convert technical errors into user-friendly messages.
-   */
   private humanizeError(message: string): string {
     if (message.includes('ENOTFOUND') || message.includes('ECONNREFUSED')) {
-      return 'Could not connect to OpenAI. Check your internet connection.';
+      return 'Could not connect to Gemini. Check your internet connection.';
+    }
+    if (message.includes('timed out')) {
+      return 'The request timed out. Google\'s servers may be slow to respond — try again.';
     }
     return message;
   }

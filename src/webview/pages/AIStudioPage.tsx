@@ -33,7 +33,8 @@ export const AIStudioPage = memo(function AIStudioPage() {
   const [copied, setCopied] = useState(false);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
 
-  const currentRequestId = useRef<string | null>(null);
+const currentRequestId = useRef<string | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { postMessage } = useVSCode();
   const { navigate } = useNavigation();
   const { success } = useToast();
@@ -63,31 +64,33 @@ export const AIStudioPage = memo(function AIStudioPage() {
   });
 
   // ── Listen for stream completion ───────────────────────────────────────────
-  useVSCodeMessage<WebviewMessage>(MessageType.AI_STREAM_END, (message) => {
+useVSCodeMessage<WebviewMessage>(MessageType.AI_STREAM_END, (message) => {
     const payload = (message as WebviewMessage & {
       payload?: { requestId: string; result: string };
     }).payload;
 
     if (payload && payload.requestId === currentRequestId.current) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setState('complete');
       success('Component generated!');
     }
   });
 
   // ── Listen for errors ──────────────────────────────────────────────────────
-  useVSCodeMessage<WebviewMessage>(MessageType.AI_ERROR, (message) => {
+useVSCodeMessage<WebviewMessage>(MessageType.AI_ERROR, (message) => {
     const payload = (message as WebviewMessage & {
       payload?: { requestId: string; error: string };
     }).payload;
 
     if (payload && payload.requestId === currentRequestId.current) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setState('error');
       setErrorMessage(payload.error);
     }
   });
 
   // ── Submit handler ──────────────────────────────────────────────────────────
-  const handleSubmit = useCallback(() => {
+const handleSubmit = useCallback(() => {
     if (!prompt.trim()) return;
 
     if (hasApiKey === false) {
@@ -100,6 +103,16 @@ export const AIStudioPage = memo(function AIStudioPage() {
     setStreamedCode('');
     setErrorMessage('');
     setState('streaming');
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      if (currentRequestId.current === requestId) {
+        setState('error');
+        setErrorMessage(
+          'No response after 30 seconds. Check View → Output → "Quantum UI" for details, or verify your internet connection.'
+        );
+      }
+    }, 30000);
 
     postMessage({
       type: MessageType.AI_GENERATE,
@@ -186,7 +199,7 @@ export const AIStudioPage = memo(function AIStudioPage() {
             </p>
           </div>
           <p className="text-2xs text-q-text-muted leading-relaxed">
-            Add your OpenAI API key in Settings to start generating components.
+            Add your Gemini API key in Settings to start generating components.
           </p>
           <button
             onClick={() => navigate('settings' as never)}

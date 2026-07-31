@@ -178,7 +178,7 @@ class SidebarProvider {
             if (keyMsg.payload?.apiKey) {
                 const trimmed = keyMsg.payload.apiKey.trim();
                 if (!SecretsManager_1.SecretsManager.isValidKeyFormat(trimmed)) {
-                    void vscode.window.showErrorMessage('Invalid API key format. OpenAI keys start with "sk-".');
+                    void vscode.window.showErrorMessage('Invalid API key — please check and try again.');
                     await this.sendApiKeyStatus();
                     return;
                 }

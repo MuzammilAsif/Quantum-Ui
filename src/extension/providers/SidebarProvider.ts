@@ -201,7 +201,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         if (!SecretsManager.isValidKeyFormat(trimmed)) {
           void vscode.window.showErrorMessage(
-            'Invalid API key format. OpenAI keys start with "sk-".'
+            'Invalid API key — please check and try again.'
           );
           await this.sendApiKeyStatus();
           return;

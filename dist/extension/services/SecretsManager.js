@@ -41,12 +41,12 @@ class SecretsManager {
         return key !== undefined && key.length > 0;
     }
     /**
-     * Validate the shape of an OpenAI API key before storing it.
+     * Validate the shape of a Gemini API key before storing it.
      * Does not verify it works — just checks the format looks correct.
      */
     static isValidKeyFormat(key) {
         const trimmed = key.trim();
-        return trimmed.startsWith('sk-') && trimmed.length > 20;
+        return trimmed.startsWith('AQ') && trimmed.length > 20;
     }
 }
 exports.SecretsManager = SecretsManager;

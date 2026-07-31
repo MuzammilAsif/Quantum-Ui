@@ -28,7 +28,7 @@ export declare class SecretsManager {
      */
     hasApiKey(): Promise<boolean>;
     /**
-     * Validate the shape of an OpenAI API key before storing it.
+     * Validate the shape of a Gemini API key before storing it.
      * Does not verify it works — just checks the format looks correct.
      */
     static isValidKeyFormat(key: string): boolean;
