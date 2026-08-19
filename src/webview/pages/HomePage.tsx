@@ -1,14 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Layers,
-  Layout,
-  Sparkles,
-  ArrowRight,
-  Zap,
-  Star,
-  Clock,
-} from 'lucide-react';
+import { Layers, Layout, Sparkles, ArrowRight, Zap, Star, Clock } from 'lucide-react';
 import { ContentContainer } from '../components/ContentContainer';
 import { SectionTitle } from '../components/SectionTitle';
 import { useNavigation } from '../hooks/useNavigation';
@@ -55,8 +47,10 @@ function QuickCard({ icon, label, sub, gradient, onClick }: QuickCardProps) {
         {icon}
       </div>
       <div>
-        <p className="text-xs font-semibold text-q-text group-hover:text-white
-          transition-colors leading-tight">
+        <p
+          className="text-xs font-semibold text-q-text group-hover:text-white
+          transition-colors leading-tight"
+        >
           {label}
         </p>
         <p className="text-2xs text-q-text-faint mt-0.5 leading-snug">{sub}</p>
@@ -69,8 +63,10 @@ function QuickCard({ icon, label, sub, gradient, onClick }: QuickCardProps) {
 
 function StatChip({ value, label }: { value: string; label: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg
-      bg-q-elevated border border-q-border flex-1">
+    <div
+      className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg
+      bg-q-elevated border border-q-border flex-1"
+    >
       <span className="text-sm font-bold text-gradient">{value}</span>
       <span className="text-2xs text-q-text-faint">{label}</span>
     </div>
@@ -86,12 +82,7 @@ interface CategoryPreviewRowProps {
   onClick: () => void;
 }
 
-function CategoryPreviewRow({
-  icon,
-  name,
-  count,
-  onClick,
-}: CategoryPreviewRowProps) {
+function CategoryPreviewRow({ icon, name, count, onClick }: CategoryPreviewRowProps) {
   return (
     <motion.button
       onClick={onClick}
@@ -104,16 +95,22 @@ function CategoryPreviewRow({
         'hover:border-[var(--q-accent-border)] transition-all duration-150'
       )}
     >
-      <div className="flex-shrink-0 w-6 h-6 rounded-md flex items-center
-        justify-center bg-[var(--q-accent-subtle)] text-[var(--q-accent)]">
+      <div
+        className="flex-shrink-0 w-6 h-6 rounded-md flex items-center
+        justify-center bg-[var(--q-accent-subtle)] text-[var(--q-accent)]"
+      >
         {icon}
       </div>
-      <span className="flex-1 text-left text-xs font-medium text-q-text-muted
-        group-hover:text-q-text transition-colors truncate">
+      <span
+        className="flex-1 text-left text-xs font-medium text-q-text-muted
+        group-hover:text-q-text transition-colors truncate"
+      >
         {name}
       </span>
-      <span className="flex-shrink-0 text-2xs font-semibold text-q-text-faint
-        bg-q-overlay px-1.5 py-0.5 rounded-full">
+      <span
+        className="flex-shrink-0 text-2xs font-semibold text-q-text-faint
+        bg-q-overlay px-1.5 py-0.5 rounded-full"
+      >
         {count}
       </span>
       <ArrowRight
@@ -159,27 +156,22 @@ export const HomePage = memo(function HomePage() {
 
   return (
     <ContentContainer>
-
       {/* ── Welcome banner ─────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
         className="relative overflow-hidden rounded-lg p-3 border border-q-border"
         style={{
-          background:
-            'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(34,188,255,0.06) 100%)',
+          background: 'linear-gradient(135deg, var(--q-accent-subtle) 0%, var(--q-elevated) 100%)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
         }}
       >
         {/* Background glow */}
         <div
           aria-hidden="true"
-          className="absolute -top-6 -right-6 w-20 h-20 rounded-full
-            opacity-20 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #8b5cf6, transparent)' }}
+          className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-30 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, var(--q-accent), transparent)' }}
         />
-
         <div className="flex items-center gap-2 mb-1.5">
           <Zap
             size={12}
@@ -187,15 +179,15 @@ export const HomePage = memo(function HomePage() {
             aria-hidden="true"
             style={{ filter: 'drop-shadow(0 0 4px var(--q-accent-glow))' }}
           />
-          <span className="text-2xs font-bold uppercase tracking-widest
-            text-[var(--q-accent)]">
+          <span
+            className="text-2xs font-bold uppercase tracking-widest
+            text-[var(--q-accent)]"
+          >
             Welcome
           </span>
         </div>
 
-        <h1 className="text-sm font-bold text-q-text leading-snug mb-0.5">
-          Quantum UI
-        </h1>
+        <h1 className="text-sm font-bold text-q-text leading-snug mb-0.5">Quantum UI</h1>
         <p className="text-2xs text-q-text-muted leading-relaxed">
           Your AI-powered component system. Browse, generate, and insert UI instantly.
         </p>
@@ -210,13 +202,10 @@ export const HomePage = memo(function HomePage() {
       >
         <StatChip value={String(TOTAL_ASSET_COUNT)} label="Assets" />
         <StatChip value={String(CATEGORIES.length)} label="Categories" />
-        <StatChip
-          value={favoriteCount > 0 ? String(favoriteCount) : '—'}
-          label="Favorites"
-        />
+        <StatChip value={favoriteCount > 0 ? String(favoriteCount) : '—'} label="Favorites" />
       </motion.div>
 
-{/* ── Library grid ────────────────────────────────────────────────────── */}
+      {/* ── Library grid ────────────────────────────────────────────────────── */}
       <div>
         <SectionTitle
           title="UI Libraries"
@@ -259,11 +248,7 @@ export const HomePage = memo(function HomePage() {
           <QuickCard
             icon={<Star size={14} className="text-white" />}
             label="Favorites"
-            sub={
-              favoriteCount > 0
-                ? `${favoriteCount} saved`
-                : 'None saved yet'
-            }
+            sub={favoriteCount > 0 ? `${favoriteCount} saved` : 'None saved yet'}
             gradient="linear-gradient(135deg, #f59e0b, #ef4444)"
             onClick={() => navigate('favorites' as NavPage)}
           />
@@ -285,14 +270,8 @@ export const HomePage = memo(function HomePage() {
                   bg-q-elevated border border-q-border cursor-pointer
                   hover:border-amber-500/30 transition-all duration-150"
               >
-                <Star
-                  size={16}
-                  className="text-amber-400 fill-amber-400"
-                  aria-hidden="true"
-                />
-                <span className="text-sm font-bold text-q-text">
-                  {favoriteCount}
-                </span>
+                <Star size={16} className="text-amber-400 fill-amber-400" aria-hidden="true" />
+                <span className="text-sm font-bold text-q-text">{favoriteCount}</span>
                 <span className="text-2xs text-q-text-faint">Favorites</span>
               </motion.button>
             )}
@@ -306,14 +285,8 @@ export const HomePage = memo(function HomePage() {
                   bg-q-elevated border border-q-border cursor-pointer
                   hover:border-[var(--q-accent-border)] transition-all duration-150"
               >
-                <Clock
-                  size={16}
-                  className="text-[var(--q-accent)]"
-                  aria-hidden="true"
-                />
-                <span className="text-sm font-bold text-q-text">
-                  {recentCount}
-                </span>
+                <Clock size={16} className="text-[var(--q-accent)]" aria-hidden="true" />
+                <span className="text-sm font-bold text-q-text">{recentCount}</span>
                 <span className="text-2xs text-q-text-faint">Recent</span>
               </motion.button>
             )}
@@ -338,8 +311,10 @@ export const HomePage = memo(function HomePage() {
               className="flex items-center gap-2.5 px-3 py-2 rounded-md
                 bg-q-elevated border border-q-border"
             >
-              <span className="text-2xs font-bold text-[var(--q-accent)]
-                font-mono flex-shrink-0 opacity-70">
+              <span
+                className="text-2xs font-bold text-[var(--q-accent)]
+                font-mono flex-shrink-0 opacity-70"
+              >
                 {step}
               </span>
               <span className="text-xs text-q-text-muted">{text}</span>
@@ -352,7 +327,6 @@ export const HomePage = memo(function HomePage() {
           ))}
         </div>
       </div>
-
     </ContentContainer>
   );
 });

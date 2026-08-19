@@ -6,8 +6,8 @@ import {
   ExternalLink, type LucideIcon,
 } from 'lucide-react';
 import { useLibraryStore } from '../../store/libraryStore';
-import { useAssetStore } from '../../store/assetStore';
 import { getLibraryById, getCategoriesForLibrary } from './data';
+import { getAssetsByLibrary } from '../components/data';
 import { ComponentCard } from '../components/ComponentCard';
 import { EmptyState } from '../../components/EmptyState';
 import { cn } from '../../utils';
@@ -28,38 +28,24 @@ const ICON_MAP: Record<string, LucideIcon> = {
  * ├─────────────────────────────┤
  * │ Component grid               │
  * └─────────────────────────────┘
- *
- * Note: currently only Quantum UI has real seeded assets (from Phase 1/2).
- * Other libraries show an empty state until content is added —
- * this is expected and correct for the local-data MVP.
  */
 export const LibraryDetailView = memo(function LibraryDetailView() {
-  const { activeLibrary, activeCategory, setActiveCategory, goBackToLibraries } =
-    useLibraryStore();
-  const { allAssets } = useAssetStore();
+  const { activeLibrary, goBackToLibraries } = useLibraryStore();
 
   const [localCategory, setLocalCategory] = useState<string | 'all'>('all');
 
   const library = activeLibrary ? getLibraryById(activeLibrary) : undefined;
   const categories = activeLibrary ? getCategoriesForLibrary(activeLibrary) : [];
 
-  // Filter assets belonging to this library.
-  // Quantum UI assets use category ids like 'buttons', 'cards', 'inputs'
-  // (no library prefix) since they predate the multi-library system.
   const libraryAssets = useMemo(() => {
     if (!activeLibrary) return [];
 
-    if (activeLibrary === 'quantum') {
-      const filtered =
-        localCategory === 'all'
-          ? allAssets
-          : allAssets.filter((a) => a.category === localCategory);
-      return filtered;
-    }
+    const assets = getAssetsByLibrary(activeLibrary);
 
-    // Other libraries have no local assets yet in this MVP
-    return [];
-  }, [activeLibrary, allAssets, localCategory]);
+    return localCategory === 'all'
+      ? assets
+      : assets.filter((a) => a.category === localCategory);
+  }, [activeLibrary, localCategory]);
 
   if (!library) return null;
 
@@ -81,10 +67,14 @@ export const LibraryDetailView = memo(function LibraryDetailView() {
         </button>
 
         <div
-          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
           style={{ background: `${library.color}20`, border: `1px solid ${library.color}40` }}
         >
-          <Icon size={13} style={{ color: library.color }} aria-hidden="true" />
+          {library.logoUrl ? (
+            <img src={library.logoUrl} alt={`${library.name} logo`} className="w-4 h-4 object-contain" />
+          ) : (
+            <Icon size={13} style={{ color: library.color }} aria-hidden="true" />
+          )}
         </div>
 
         <div className="flex-1 min-w-0">
@@ -92,8 +82,8 @@ export const LibraryDetailView = memo(function LibraryDetailView() {
           <p className="text-2xs text-q-text-faint truncate">{library.description}</p>
         </div>
 
-        <a
-          href={library.website}
+        
+          <a href={library.website}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Visit ${library.name} website`}
@@ -138,12 +128,8 @@ export const LibraryDetailView = memo(function LibraryDetailView() {
       {libraryAssets.length === 0 ? (
         <EmptyState
           icon={<Icon size={20} />}
-          title={`${library.name} components coming soon`}
-          description={
-            activeLibrary === 'quantum'
-              ? 'No components in this category yet.'
-              : 'This library integration is in progress. Quantum UI components are available now.'
-          }
+          title={`No ${library.name} components in this category`}
+          description="Try a different category tab, or select All to see everything available."
         />
       ) : (
         <motion.div layout className="grid grid-cols-1 gap-2">

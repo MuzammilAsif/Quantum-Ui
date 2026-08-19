@@ -37,7 +37,7 @@ export default defineConfig({
         entryFileNames: '[name]-[hash].js',
       },
     },
-    assetsInlineLimit: 4096,
+   assetsInlineLimit: 500000,
     cssCodeSplit: false,
   },
 

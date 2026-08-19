@@ -44,17 +44,20 @@ export const LibraryGrid = memo(function LibraryGrid() {
               'hover:border-[var(--q-accent-border)] transition-colors duration-150'
             )}
           >
-            {/* Icon */}
+            {/* Icon — real logo if available, Lucide icon fallback otherwise */}
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
               style={{
                 background: `${lib.color}20`,
                 border: `1px solid ${lib.color}40`,
               }}
             >
-              <Icon size={18} style={{ color: lib.color }} aria-hidden="true" />
+              {lib.logoUrl ? (
+                <img src={lib.logoUrl} alt={`${lib.name} logo`} className="w-6 h-6 object-contain" />
+              ) : (
+                <Icon size={18} style={{ color: lib.color }} aria-hidden="true" />
+              )}
             </div>
-
             {/* Text */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">

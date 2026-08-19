@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Settings, Zap } from 'lucide-react';
+import { Search, Settings } from 'lucide-react';
+import logoUrl from '../../assets/quantum.png';
 import { IconButton } from './IconButton';
 import { SearchBar } from './SearchBar';
 import { AnimatePresence } from 'framer-motion';
@@ -59,14 +60,10 @@ export const Header = memo(function Header({ className }: HeaderProps) {
             >
               {/* Logo mark */}
               <div
-                className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center"
-                style={{
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #22bcff 100%)',
-                  boxShadow: '0 0 12px rgba(139,92,246,0.4)',
-                }}
+                className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center overflow-hidden"
                 aria-hidden="true"
               >
-                <Zap size={12} className="text-white" strokeWidth={2.5} />
+                <img src={logoUrl} alt="" className="w-full h-full object-contain" />
               </div>
 
               {/* Wordmark */}

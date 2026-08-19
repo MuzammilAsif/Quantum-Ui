@@ -1,4 +1,9 @@
 import type { LibraryDefinition, LibraryCategoryDefinition } from './types';
+import quantumLogo from '../../../assets/quantum.png';
+import shadcnLogo from '../../../assets/shadcn.png';
+import aceternityLogo from '../../../assets/aceternity.png';
+import magicLogo from '../../../assets/magicui.png';
+import mantineLogo from '../../../assets/mantine.png';
 
 export const LIBRARIES: LibraryDefinition[] = [
   {
@@ -6,6 +11,7 @@ export const LIBRARIES: LibraryDefinition[] = [
     name: 'Quantum UI',
     description: 'Our own hand-crafted components',
     icon: 'Zap',
+    logoUrl: quantumLogo,
     website: 'https://quantumui.dev',
     color: '#8b5cf6',
     isOfficial: true,
@@ -15,6 +21,7 @@ export const LIBRARIES: LibraryDefinition[] = [
     name: 'shadcn/ui',
     description: 'Beautifully designed components built with Radix UI',
     icon: 'Layers',
+    logoUrl: shadcnLogo,
     website: 'https://ui.shadcn.com',
     color: '#71717a',
     isOfficial: false,
@@ -24,6 +31,7 @@ export const LIBRARIES: LibraryDefinition[] = [
     name: 'Magic UI',
     description: 'Beautiful animated React components',
     icon: 'Sparkles',
+    logoUrl: magicLogo,
     website: 'https://magicui.design',
     color: '#6366f1',
     isOfficial: false,
@@ -32,7 +40,8 @@ export const LIBRARIES: LibraryDefinition[] = [
     id: 'aceternity',
     name: 'Aceternity UI',
     description: 'Trendy components with stunning effects',
-    icon: 'Star',
+    icon: 'Sparkles',
+    logoUrl: aceternityLogo,
     website: 'https://ui.aceternity.com',
     color: '#f59e0b',
     isOfficial: false,
@@ -41,7 +50,8 @@ export const LIBRARIES: LibraryDefinition[] = [
     id: 'mantine',
     name: 'Mantine',
     description: 'A fully featured React components library',
-    icon: 'LayoutDashboard',
+    icon: 'Star',
+    logoUrl: mantineLogo,
     website: 'https://mantine.dev',
     color: '#339af0',
     isOfficial: false,

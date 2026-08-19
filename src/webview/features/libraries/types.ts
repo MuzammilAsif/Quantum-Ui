@@ -5,6 +5,8 @@ export interface LibraryDefinition {
   name: string;
   description: string;
   icon: string;
+  /** Optional real logo image — falls back to the Lucide `icon` above when not set */
+  logoUrl?: string;
   website: string;
   color: string;
   isOfficial: boolean;
